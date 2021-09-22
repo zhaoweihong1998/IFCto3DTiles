@@ -10,13 +10,15 @@ struct Option
 	string filename;
 	bool binary;
 	bool log;
+	std::string outputDir;
 	Option() {
 		Max_Vertices_per_Node = 500;
 		Min_Mesh_Per_Node = 10;
-		Level = 3;
+		Level = 0;
 		filename = "";
 		binary = false;
 		log = false;
+		outputDir = "output";
 	}
 };
 

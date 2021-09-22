@@ -1,5 +1,24 @@
 #include "My3DTilesExporter.h"
 #include <sstream>
+
+#if defined(_MSC_VER)
+#include <direct.h>
+#include <io.h>
+#define GetCurrentDir _getcwd
+#elif defined(__unix__)
+#include <unistd.h>
+#define GetCurrentDir getcwd
+#else
+#endif
+
+std::string get_current_directory()
+{
+    char buff[250];
+    GetCurrentDir(buff, 250);
+    string current_working_directory(buff);
+    return current_working_directory;
+}
+
 void main(int argc, const char* argv[]){
     Option op;
     if (argc == 1) {
@@ -23,6 +42,7 @@ void main(int argc, const char* argv[]){
                 std::stringstream s;
                 s << argv[++i];
                 s >> op.Level;
+                op.Level--;
             }
         }
         else if (!strcmp(argv[i], "--binary") || !strcmp(argv[i], "-binary")) {
@@ -72,7 +92,13 @@ void main(int argc, const char* argv[]){
             }
         }
     }
+    std::string pre = get_current_directory();
+    pre += "\\";
+    pre += op.outputDir;
+    if (access(pre.c_str(), 0)) {
+        std::string command = "mkdir " + pre;
+        system(command.c_str());
+    }
     My3DTilesExporter* handler = new My3DTilesExporter(op);
     handler->export3DTiles();
-    std::cin.get();
 }

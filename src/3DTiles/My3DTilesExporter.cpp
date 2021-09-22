@@ -47,16 +47,15 @@ void My3DTilesExporter::createMyMesh()
 			(*vi).P()[1] = m_mesh->mVertices[j][1];
 			(*vi).P()[2] = m_mesh->mVertices[j][2];
 
-			if (m_mesh->mNormals != NULL) {
+			if (m_mesh->mNormals ==NULL) {
+				(*vi).normalExist = false;
+			}
+			else {
 				(*vi).normalExist = true;
 				(*vi).N()[0] = m_mesh->mNormals[j][0];
 				(*vi).N()[1] = m_mesh->mNormals[j][1];
 				(*vi).N()[2] = m_mesh->mNormals[j][2];
 			}
-			else {
-				(*vi).normalExist = false;
-			}
-
 			index.push_back(&*vi);
 			++vi;
 		}
@@ -68,12 +67,14 @@ void My3DTilesExporter::createMyMesh()
 			(*fi).V(2) = index[m_mesh->mFaces[j].mIndices[2]];
 			++fi;
 		}
-
-		tri::UpdateNormal<MyMesh>::PerVertexClear(*mesh);
-		tri::UpdateNormal<MyMesh>::PerVertex(*mesh);
-		/*tri::UpdateNormal<MyMesh>::PerVertexAngleWeighted(*mesh);
-		tri::UpdateNormal<MyMesh>::PerVertexNelsonMaxWeighted(*mesh);*/
-		tri::UpdateNormal<MyMesh>::NormalizePerVertex(*mesh);
+		if (!mesh->vert[0].normalExist)
+		{
+			tri::UpdateNormal<MyMesh>::PerVertexClear(*mesh);
+			tri::UpdateNormal<MyMesh>::PerVertex(*mesh);
+			/*tri::UpdateNormal<MyMesh>::PerVertexAngleWeighted(*mesh);
+			tri::UpdateNormal<MyMesh>::PerVertexNelsonMaxWeighted(*mesh);*/
+			tri::UpdateNormal<MyMesh>::NormalizePerVertex(*mesh);
+		}
 
 	}
 }
@@ -122,17 +123,17 @@ void My3DTilesExporter::createNodeBox()
 		vector<MeshInfo> meshInfos;
 		getNodeMeshInfos(node, meshInfos, batch_id);
 		for (int j = 0; j < meshInfos.size(); j++) {
-			//这里的batchId是node编号
+			
 			unsigned int  batchId = meshInfos[j].batchId;
 			string name = meshInfos[j].name;
-			//end
+			
 			if (meshInfos[j].matrix != nullptr) {
 				Matrix44f matrix = *meshInfos[j].matrix;
 				Matrix44f temp_ =  Inverse(matrix).transpose();
 				Matrix33f normalMatrix = Matrix33f(temp_,3);
-				//修改20210614 赵伟宏
+				
 				MyMesh* mergeNode = new MyMesh();
-				//end
+				
 				for (int k = 0; k < meshInfos[j].mNumMeshes; ++k) {
 					MyMesh* mesh_ = myMeshes[meshInfos[j].meshIndex[k]];
 					MyMesh* mesh = new MyMesh();
@@ -140,7 +141,7 @@ void My3DTilesExporter::createNodeBox()
 					vector<MyVertex>::iterator it;
 					for (it = mesh->vert.begin(); it != mesh->vert.end(); ++it) {
 
-						//it->batch_id = batchId;
+						
 
 						tempPt[0] = it->P()[0];
 						tempPt[1] = it->P()[1];
@@ -159,38 +160,28 @@ void My3DTilesExporter::createNodeBox()
 					mesh->name = name;
 					mesh->batchId = batchId;
 
-					//修改 20210614 赵伟宏
-					//MyMesh::ConcatMyMesh(mergeNode, mesh);
+					
 					tri::UpdateBounding<MyMesh>::Box(*mesh);
 					nodeMeshes.push_back(mesh);
-					//end
+					
 				}
-				//修改 20210614 赵伟宏
-				/*tri::UpdateBounding<MyMesh>::Box(*mergeNode);
-				nodeMeshes.push_back(mergeNode);*/
-				//end
+				
 
 			}
 			else {
-				//修改 赵伟宏 20210614
-				//MyMesh* mergeNode = new MyMesh();
-				//end
+				
 				for (int k = 0; k < meshInfos[i].mNumMeshes; ++k) {
 					MyMesh* mesh_ = myMeshes[meshInfos[i].meshIndex[k]];
 					MyMesh* mesh = new MyMesh();
 					MyMesh::ConcatMyMesh(mesh, mesh_);
 					vector<MyVertex>::iterator it;
 
-					//修改20210614 赵伟宏
-					//MyMesh::ConcatMyMesh(mergeNode, mesh);
+					
 					tri::UpdateBounding<MyMesh>::Box(*mesh);
 					nodeMeshes.push_back(mesh);
-					//end
+					
 				}
-				//修改 20210614 赵伟宏
-				/*tri::UpdateBounding<MyMesh>::Box(*mergeNode);
-				nodeMeshes.push_back(mergeNode);*/
-				//end
+				
 			}
 		}
 	}
@@ -294,15 +285,10 @@ void My3DTilesExporter::export3DTilesset(TileInfo* rootTile)
 	dummyTransform.push_back(0);
 	dummyTransform.push_back(1);
 	tilesetJson["root"]["transform"] = dummyTransform;
-	char filepath[1024];
-	sprintf(filepath, "%s\\tileset.json", "C:\\Users\\14911\\Documents\\dev\\3DTiles\\3DTiles\\build\\output");
+	char* filepath = ".\\output\\tileset.json";
 	std::ofstream file(filepath);
 	file << tilesetJson;
 
-	/*sprintf(filepath, "%s\\batchLength.json", "C:\\Users\\14911\\Documents\\assimp-5.0.1\\build\\output");
-	std::ofstream batchLengthJson(filepath);
-	m_batchLegnthsJson["batchLength"] = "C:\\Users\\14911\\Documents\\assimp-5.0.1\\build\\output";
-	batchLengthJson << m_batchLegnthsJson;*/
 }
 
 void My3DTilesExporter::exportTiles(TileInfo* rootTile)

@@ -72,50 +72,37 @@ static inline Ref<Accessor> ExportData(Asset& a, std::string& meshName, Ref<Buff
 static int track = 0;
 void MyGltfExporter::exportMeshes()
 {
-    //print 20210914
-    //std::cout << bufferName << std::endl;
+    
     Ref<Buffer> b = mAsset->GetBodyBuffer();
     if (!b) {
         b = mAsset->buffers.Create(bufferName);
     }
-    //202107 debug zhaoweihong
-    //track++;
-    //if(track==7)cout << "total meshes" <<meshes.size() << endl;
-    //end
+    
     for (unsigned int idx_mesh = 0; idx_mesh < meshes.size(); ++idx_mesh) {
-        //202107 debug zhaoweihong
-        /*if (track == 7) {
-            cout << idx_mesh << "; ";
-            if (idx_mesh > 3771) {
-                cin.get();
-            }
-        }*/
-        //end
+        
+        
         const MyMeshInfo mesh = meshes[idx_mesh];
-        //change 20210701 zhao
-        /*std::string name = "mesh_"+to_string(idx_mesh);
-        std::string meshId = mAsset->FindUniqueID(name, "mesh");*/
+        
         std::string name = mesh.myMesh->name;
         std::string meshId = mAsset->FindUniqueID(name,"mesh");
-        //
+        
         Ref<Mesh> m = mAsset->meshes.Create(meshId);
         m->primitives.resize(1);
         Mesh::Primitive& p = m->primitives.back();
         m->name = name;
         p.material = mAsset->materials.Get(idx_mesh);
-        //wrong
+        
         p.batchId = mesh.myMesh->batchId;
-        //
+        
         float* pos = (float*)malloc(sizeof(float) * mesh.myMesh->vn * 3);
         float* ind_pos = pos;
         /*unsigned int* bacthID = (unsigned int*)malloc(sizeof(unsigned int) * mesh.myMesh->vn);
         unsigned int* index_batchId = bacthID;*/
         float* nor = nullptr;
         float* ind_nor = nullptr;
-        if (mesh.myMesh[0].vert[0].normalExist) {
-            nor = (float*)malloc(sizeof(float) * mesh.myMesh->vn * 3);
-            ind_nor= nor;
-        }
+        
+        nor = (float*)malloc(sizeof(float) * mesh.myMesh->vn * 3);
+        ind_nor = nor;
         
         unsigned int* index = (unsigned int*)malloc(sizeof(unsigned int) * mesh.myMesh->fn * 3);
         unsigned int* ind_index = index;
@@ -133,21 +120,17 @@ void MyGltfExporter::exportMeshes()
             for (int i = 0; i < 3; ++i)
             {
                 *ind_pos = (it->P()[i]);
-                //std::cout << *ind_pos << ",";
-                if (mesh.myMesh[0].vert[0].normalExist) {
-                    *ind_nor = (it->N()[i]);
-                    
-                    ind_nor++;
-                }
+              
+                *ind_nor = (it->N()[i]);
+
+                ind_nor++;
                 ind_pos++;
             }
             m_vertexUintMap.insert(std::make_pair(&(*it), ind));
             ind++;
-            //20210701
-            /**index_batchId = BatchId;
-            index_batchId++;*/
+            
         }
-        //std::cout << std::endl;
+        
         for (std::vector<MyFace>::iterator it = mesh.myMesh->face.begin(); it != mesh.myMesh->face.end(); ++it)
         {
             if (it->IsD())
@@ -157,12 +140,11 @@ void MyGltfExporter::exportMeshes()
             for (int i = 0; i < 3; ++i)
             {
                 *ind_index = (m_vertexUintMap.at(it->V(i)));
-                //print zhaoweihong 2010914
-                //std::cout << *ind_index << ",";
+                
                 ind_index++;
             }
         }
-        //std::cout << std::endl;
+        
         Ref<Accessor> v = ExportData(*mAsset, meshId, b, mesh.myMesh->vn, pos, AttribType::VEC3, AttribType::VEC3, ComponentType_FLOAT);
         //Ref<Accessor> batch = ExportData(*mAsset, meshId, b, mesh.myMesh->vn, bacthID, AttribType::SCALAR, AttribType::SCALAR, ComponentType_UNSIGNED_INT);
         if (mesh.myMesh[0].vert[0].normalExist) {
@@ -589,16 +571,10 @@ void MyGltfExporter::constructAsset()
 
 void MyGltfExporter::write()
 {
-    char* buffer;
-    if ((buffer = getcwd(NULL, 0)) == NULL)
-    {
-        perror("getcwd error");
-    }
-    string prefix = buffer;
     string filename = bufferName;
 
-    string dir = prefix + "\\output\\" + filename;
-    
+    //string dir = prefix + "\\output\\" + filename;
+    string dir = "output\\"+filename;
     /*cout << dir << endl;*/
     //string dir = bufferName;
 	AssetWriter writer(*mAsset);
