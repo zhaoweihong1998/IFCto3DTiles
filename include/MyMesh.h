@@ -73,15 +73,10 @@ public:
             (*vi).P()[1] = src->vert[j].P()[1];
             (*vi).P()[2] = src->vert[j].P()[2];
 
-            if (src->vert[j].normalExist)
-            {
-                (*vi).normalExist = true;
-                (*vi).N()[0] = src->vert[j].N()[0];
-                (*vi).N()[1] = src->vert[j].N()[1];
-                (*vi).N()[2] = src->vert[j].N()[2];
-            }
-
-           
+            (*vi).normalExist = true;
+            (*vi).N()[0] = src->vert[j].N()[0];
+            (*vi).N()[1] = src->vert[j].N()[1];
+            (*vi).N()[2] = src->vert[j].N()[2];
 
             vertexMap.insert(make_pair(&(src->vert[j]), &*vi));
             
