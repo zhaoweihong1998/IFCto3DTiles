@@ -7,11 +7,17 @@
 
 #include <MyGltfExporter.h>
 
+#if defined(_MSC_VER)
 #ifdef TDTILE_EXPORT
 #define MY_API __declspec(dllexport)
 #else 
 #define MY_API __declspec(dllimport)
 #endif // TDTILE_EXPORT
+#else
+#define MY_API
+#endif
+
+
 
 
 

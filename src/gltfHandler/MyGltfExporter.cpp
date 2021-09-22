@@ -1,5 +1,4 @@
 #include "MyGltfExporter.h"
-#include <direct.h>
 
 static inline Ref<Accessor> ExportData(Asset& a, std::string& meshName, Ref<Buffer>& buffer,
     size_t count, void* data, AttribType::Value typeIn, AttribType::Value typeOut, ComponentType compType, bool isIndices = false) {
