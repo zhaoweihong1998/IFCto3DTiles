@@ -11,12 +11,12 @@ using namespace glTF2;
 #if defined(_MSC_VER)
 #ifdef GLTF_EXPORT
 #define GLTF_API __declspec(dllexport)
-#else GLTF_API __declspec(dllimport)
-#endif
-#endif // TDTILE_EXPORT
+#else 
+#define GLTF_API __declspec(dllimport)
+#endif // GLTF_EXPORT
 #else
 #define GLTF_API
-#endif
+#endif //_MSC_VER
 
 
 

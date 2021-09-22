@@ -15,7 +15,7 @@
 #endif // TDTILE_EXPORT
 #else
 #define MY_API
-#endif
+#endif//_MSC_VER
 
 
 
