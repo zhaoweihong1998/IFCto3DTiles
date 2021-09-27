@@ -8,6 +8,7 @@ SpatialTree::SpatialTree(const aiScene& mScene, vector<MyMesh*>& meshes, const O
 	this->m_pTileRoot = new TileInfo();
 	this->m_correntDepth = 0;
 	this->m_treeDepth = 0;
+	root = nullptr;
 }
 
 void SpatialTree::Initialize()
@@ -24,8 +25,8 @@ void SpatialTree::Initialize()
 		m_pTileRoot->myMeshInfos.push_back(meshInfo);
 		m_pTileRoot->originalVertexCount += meshInfo.myMesh->vn;
 	}
-
 	m_pTileRoot->boundingBox = sceneBox;
+	m_pTileRoot->parent = nullptr;
 	splitTreeNode(m_pTileRoot);
 }
 
@@ -60,301 +61,109 @@ bool myCompareZ(MyMeshInfo& a, MyMeshInfo& b) {
 
 void SpatialTree::splitTreeNode(TileInfo* parentTile)
 {
-	if (m_correntDepth > m_treeDepth) {
-		m_treeDepth = m_correntDepth;
-	}
-	m_correntDepth++;
-	Point3f dim = parentTile->boundingBox->Dim();
-	int i;
-	int totalVertexCount = parentTile->originalVertexCount;
-	if(op.log)std::cout << m_correntDepth << ":" << totalVertexCount << std::endl;
-	//cout << m_correntDepth << ' ' << totalVertexCount << endl;
-	/*for (int i = 0; i < parentTile->myMeshInfos.size(); ++i) {
-		totalVertexCount += parentTile->myMeshInfos[i].myMesh->vn;
-	}*/
-
-	//parentTile->originalVertexCount = totalVertexCount;
-
-	if (parentTile->myMeshInfos.size() < op.Min_Mesh_Per_Node || m_correntDepth > op.Level) {
-		m_correntDepth--;
-		return;
-	}
-
-	TileInfo* pLeft = new TileInfo;
-	TileInfo* pRight = new TileInfo;
-	pLeft->boundingBox = new Box3f(*parentTile->boundingBox);
-	pRight->boundingBox = new Box3f(*parentTile->boundingBox);
-	pLeft->boundingBox->min.X() = pLeft->boundingBox->min.Y() = pLeft->boundingBox->min.Z() = INFINITY;
-	pLeft->boundingBox->max.X() = pLeft->boundingBox->max.Y() = pLeft->boundingBox->max.Z() = -INFINITY;
-	pRight->boundingBox->min.X() = pRight->boundingBox->min.Y() = pRight->boundingBox->min.Z() = INFINITY;
-	pRight->boundingBox->max.X() = pRight->boundingBox->max.Y() = pRight->boundingBox->max.Z() = -INFINITY;
-	vector<MyMeshInfo> meshInfos = parentTile->myMeshInfos;
-	pLeft->originalVertexCount = 0;
-	pRight->originalVertexCount = 0;
-	int vertexCount = 0;
-	if (dim.X() > dim.Y() && dim.X() > dim.Z()) {
-		sort(meshInfos.begin(), meshInfos.end(), myCompareX);
-		for (int i = 0; i < meshInfos.size(); ++i) {
-			vertexCount += meshInfos[i].myMesh->vn;
-			if (vertexCount < totalVertexCount / 2) {
-				pLeft->myMeshInfos.push_back(meshInfos[i]);
-				pLeft->originalVertexCount += meshInfos[i].myMesh->vn;
-				pLeft->boundingBox->Add(meshInfos[i].myMesh->bbox);
-			}
-			else {
-				pRight->myMeshInfos.push_back(meshInfos[i]);
-				pRight->originalVertexCount += meshInfos[i].myMesh->vn;
-				pRight->boundingBox->Add(meshInfos[i].myMesh->bbox);
-			}
+	if(true)
+	{
+		if (m_correntDepth > m_treeDepth) {
+			m_treeDepth = m_correntDepth;
 		}
-	}
-	else if (dim.Y() > dim.X() && dim.Y() > dim.Z()) {
-		sort(meshInfos.begin(), meshInfos.end(), myCompareY);
-		for (int i = 0; i < meshInfos.size(); ++i) {
-			vertexCount += meshInfos[i].myMesh->vn;
-			if (vertexCount < totalVertexCount / 2) {
-				pLeft->myMeshInfos.push_back(meshInfos[i]);
-				pLeft->originalVertexCount += meshInfos[i].myMesh->vn;
-				pLeft->boundingBox->Add(meshInfos[i].myMesh->bbox);
-			}
-			else {
-				pRight->myMeshInfos.push_back(meshInfos[i]);
-				pRight->originalVertexCount += meshInfos[i].myMesh->vn;
-				pRight->boundingBox->Add(meshInfos[i].myMesh->bbox);
-			}
+		m_correntDepth++;
+		Point3f dim = parentTile->boundingBox->Dim();
+		int i;
+		int totalVertexCount = parentTile->originalVertexCount;
+		if (op.log)std::cout << m_correntDepth << ":" << totalVertexCount << std::endl;
+
+		if (parentTile->myMeshInfos.size() < op.Min_Mesh_Per_Node || m_correntDepth > op.Level) {
+			m_correntDepth--;
+			return;
 		}
-	}
-	else {
-		sort(meshInfos.begin(), meshInfos.end(), myCompareZ);
-		for (int i = 0; i < meshInfos.size(); ++i) {
-			vertexCount += meshInfos[i].myMesh->vn;
-			if (vertexCount < totalVertexCount / 2) {
-				pLeft->myMeshInfos.push_back(meshInfos[i]);
-				pLeft->originalVertexCount += meshInfos[i].myMesh->vn;
-				pLeft->boundingBox->Add(meshInfos[i].myMesh->bbox);
-			}
-			else {
-				pRight->myMeshInfos.push_back(meshInfos[i]);
-				pRight->originalVertexCount += meshInfos[i].myMesh->vn;
-				pRight->boundingBox->Add(meshInfos[i].myMesh->bbox);
-			}
-		}
-	}
-	if (pLeft->myMeshInfos.size() == 0) {
-		delete pLeft;
-		pLeft = nullptr;
-	}
-	else {
-		splitTreeNode(pLeft);
-		parentTile->children.push_back(pLeft);
 
-	}
-	if (pRight->myMeshInfos.size() == 0) {
-		delete pRight;
-		pRight = nullptr;
-	}
-	else {
-		splitTreeNode(pRight);
-		parentTile->children.push_back(pRight);
-
-	}
-
-	//修改 20210614 赵伟宏
-	//20210714 修改 在添加mesh的时候更新box
-	//partion000->boundingBox->min.X() = partion000->boundingBox->min.Y() = partion000->boundingBox->min.Z() = INFINITY;
-	//partion000->boundingBox->max.X() = partion000->boundingBox->max.Y() = partion000->boundingBox->max.Z() = -INFINITY;
-	//partion000->boundingBox->Add(meshInfos[i].myMesh->bbox);
-	/*
-	float mid_x = (parentTile->boundingBox->min.X() + parentTile->boundingBox->max.X()) / 2;
-	float mid_y = (parentTile->boundingBox->min.Y() + parentTile->boundingBox->max.Y()) / 2;
-	float mid_z = (parentTile->boundingBox->min.Z() + parentTile->boundingBox->max.Z()) / 2;
-
-	TileInfo* partion000 = new TileInfo;
-	TileInfo* partion001 = new TileInfo;
-	partion000->boundingBox = new Box3f(*parentTile->boundingBox);
-	partion000->boundingBox->min.X() = partion000->boundingBox->min.Y() = partion000->boundingBox->min.Z() = INFINITY;
-	partion000->boundingBox->max.X() = partion000->boundingBox->max.Y() = partion000->boundingBox->max.Z() = -INFINITY;
-
-	partion001->boundingBox = new Box3f(*parentTile->boundingBox);
-	partion001->boundingBox->min.X() = partion001->boundingBox->min.Y() = partion001->boundingBox->min.Z() = INFINITY;
-	partion001->boundingBox->max.X() = partion001->boundingBox->max.Y() = partion001->boundingBox->max.Z() = -INFINITY;
-
-
-	TileInfo* partion010 = new TileInfo;
-	TileInfo* partion011 = new TileInfo;
-	partion010->boundingBox = new Box3f(*parentTile->boundingBox);
-	partion010->boundingBox->min.X() = partion010->boundingBox->min.Y() = partion010->boundingBox->min.Z() = INFINITY;
-	partion010->boundingBox->max.X() = partion010->boundingBox->max.Y() = partion010->boundingBox->max.Z() = -INFINITY;
-
-	partion011->boundingBox = new Box3f(*parentTile->boundingBox);
-	partion011->boundingBox->min.X() = partion011->boundingBox->min.Y() = partion011->boundingBox->min.Z() = INFINITY;
-	partion011->boundingBox->max.X() = partion011->boundingBox->max.Y() = partion011->boundingBox->max.Z() = -INFINITY;
-
-
-	TileInfo* partion100 = new TileInfo;
-	TileInfo* partion101 = new TileInfo;
-	partion100->boundingBox = new Box3f(*parentTile->boundingBox);
-	partion100->boundingBox->min.X() = partion100->boundingBox->min.Y() = partion100->boundingBox->min.Z() = INFINITY;
-	partion100->boundingBox->max.X() = partion100->boundingBox->max.Y() = partion100->boundingBox->max.Z() = -INFINITY;
-
-	partion101->boundingBox = new Box3f(*parentTile->boundingBox);
-	partion101->boundingBox->min.X() = partion101->boundingBox->min.Y() = partion101->boundingBox->min.Z() = INFINITY;
-	partion101->boundingBox->max.X() = partion101->boundingBox->max.Y() = partion101->boundingBox->max.Z() = -INFINITY;
-
-
-	TileInfo* partion110 = new TileInfo;
-	TileInfo* partion111 = new TileInfo;
-	partion110->boundingBox = new Box3f(*parentTile->boundingBox);
-	partion110->boundingBox->min.X() = partion110->boundingBox->min.Y() = partion110->boundingBox->min.Z() = INFINITY;
-	partion110->boundingBox->max.X() = partion110->boundingBox->max.Y() = partion110->boundingBox->max.Z() = -INFINITY;
-
-	partion111->boundingBox = new Box3f(*parentTile->boundingBox);
-	partion111->boundingBox->min.X() = partion111->boundingBox->min.Y() = partion111->boundingBox->min.Z() = INFINITY;
-	partion111->boundingBox->max.X() = partion111->boundingBox->max.Y() = partion111->boundingBox->max.Z() = -INFINITY;
-
-
-
-	for (int i = 0; i < meshInfos.size(); ++i) {
-		if (meshInfos[i].myMesh->bbox.Center().X()<mid_x) {
-			if (meshInfos[i].myMesh->bbox.Center().Y() < mid_y) {
-				if (meshInfos[i].myMesh->bbox.Center().Z() < mid_z) {
-					partion000->boundingBox->Add(meshInfos[i].myMesh->bbox);
-					partion000->myMeshInfos.push_back(meshInfos[i]);
-
+		TileInfo* pLeft = new TileInfo;
+		TileInfo* pRight = new TileInfo;
+		pLeft->boundingBox = new Box3f(*parentTile->boundingBox);
+		pRight->boundingBox = new Box3f(*parentTile->boundingBox);
+		pLeft->boundingBox->min.X() = pLeft->boundingBox->min.Y() = pLeft->boundingBox->min.Z() = INFINITY;
+		pLeft->boundingBox->max.X() = pLeft->boundingBox->max.Y() = pLeft->boundingBox->max.Z() = -INFINITY;
+		pRight->boundingBox->min.X() = pRight->boundingBox->min.Y() = pRight->boundingBox->min.Z() = INFINITY;
+		pRight->boundingBox->max.X() = pRight->boundingBox->max.Y() = pRight->boundingBox->max.Z() = -INFINITY;
+		vector<MyMeshInfo> meshInfos = parentTile->myMeshInfos;
+		pLeft->originalVertexCount = 0;
+		pRight->originalVertexCount = 0;
+		int vertexCount = 0;
+		if (dim.X() > dim.Y() && dim.X() > dim.Z()) {
+			sort(meshInfos.begin(), meshInfos.end(), myCompareX);
+			for (int i = 0; i < meshInfos.size(); ++i) {
+				vertexCount += meshInfos[i].myMesh->vn;
+				if (vertexCount < totalVertexCount / 2) {
+					pLeft->myMeshInfos.push_back(meshInfos[i]);
+					pLeft->originalVertexCount += meshInfos[i].myMesh->vn;
+					pLeft->boundingBox->Add(meshInfos[i].myMesh->bbox);
 				}
 				else {
-					partion001->boundingBox->Add(meshInfos[i].myMesh->bbox);
-					partion001->myMeshInfos.push_back(meshInfos[i]);
-
+					pRight->myMeshInfos.push_back(meshInfos[i]);
+					pRight->originalVertexCount += meshInfos[i].myMesh->vn;
+					pRight->boundingBox->Add(meshInfos[i].myMesh->bbox);
 				}
 			}
-			else {
-				if (meshInfos[i].myMesh->bbox.Center().Z() < mid_z) {
-					partion010->boundingBox->Add(meshInfos[i].myMesh->bbox);
-					partion010->myMeshInfos.push_back(meshInfos[i]);
-
+		}
+		else if (dim.Y() > dim.X() && dim.Y() > dim.Z()) {
+			sort(meshInfos.begin(), meshInfos.end(), myCompareY);
+			for (int i = 0; i < meshInfos.size(); ++i) {
+				vertexCount += meshInfos[i].myMesh->vn;
+				if (vertexCount < totalVertexCount / 2) {
+					pLeft->myMeshInfos.push_back(meshInfos[i]);
+					pLeft->originalVertexCount += meshInfos[i].myMesh->vn;
+					pLeft->boundingBox->Add(meshInfos[i].myMesh->bbox);
 				}
 				else {
-					partion011->boundingBox->Add(meshInfos[i].myMesh->bbox);
-					partion011->myMeshInfos.push_back(meshInfos[i]);
-
+					pRight->myMeshInfos.push_back(meshInfos[i]);
+					pRight->originalVertexCount += meshInfos[i].myMesh->vn;
+					pRight->boundingBox->Add(meshInfos[i].myMesh->bbox);
 				}
 			}
 		}
 		else {
-			if (meshInfos[i].myMesh->bbox.Center().Y() < mid_y) {
-				if (meshInfos[i].myMesh->bbox.Center().Z() < mid_z) {
-					partion100->boundingBox->Add(meshInfos[i].myMesh->bbox);
-					partion100->myMeshInfos.push_back(meshInfos[i]);
-
+			sort(meshInfos.begin(), meshInfos.end(), myCompareZ);
+			for (int i = 0; i < meshInfos.size(); ++i) {
+				vertexCount += meshInfos[i].myMesh->vn;
+				if (vertexCount < totalVertexCount / 2) {
+					pLeft->myMeshInfos.push_back(meshInfos[i]);
+					pLeft->originalVertexCount += meshInfos[i].myMesh->vn;
+					pLeft->boundingBox->Add(meshInfos[i].myMesh->bbox);
 				}
 				else {
-					partion101->boundingBox->Add(meshInfos[i].myMesh->bbox);
-					partion101->myMeshInfos.push_back(meshInfos[i]);
-
-				}
-			}
-			else {
-				if (meshInfos[i].myMesh->bbox.Center().Z() < mid_z) {
-					partion110->boundingBox->Add(meshInfos[i].myMesh->bbox);
-					partion110->myMeshInfos.push_back(meshInfos[i]);
-
-				}
-				else {
-					partion111->boundingBox->Add(meshInfos[i].myMesh->bbox);
-					partion111->myMeshInfos.push_back(meshInfos[i]);
-
+					pRight->myMeshInfos.push_back(meshInfos[i]);
+					pRight->originalVertexCount += meshInfos[i].myMesh->vn;
+					pRight->boundingBox->Add(meshInfos[i].myMesh->bbox);
 				}
 			}
 		}
+		if (pLeft->myMeshInfos.size() == 0) {
+			delete pLeft;
+			pLeft = nullptr;
+		}
+		else {
+			splitTreeNode(pLeft);
+			pLeft->parent = parentTile;
+			parentTile->children.push_back(pLeft);
+
+		}
+		if (pRight->myMeshInfos.size() == 0) {
+			delete pRight;
+			pRight = nullptr;
+		}
+		else {
+			splitTreeNode(pRight);
+			pRight->parent = parentTile;
+			parentTile->children.push_back(pRight);
+
+		}
+		m_correntDepth--;
 	}
-
-	if (partion000->myMeshInfos.size() == 0) {
-		delete partion000;
-		partion000 = nullptr;
+	else
+	{
+		TreeBuilder Tree(parentTile);
+		root = Tree.getRoot();
 	}
-	else {
-		splitTreeNode(partion000);
-		parentTile->children.push_back(partion000);
-
-	}
-
-	if (partion001->myMeshInfos.size() == 0) {
-		delete partion001;
-		partion001 = nullptr;
-	}
-	else {
-		splitTreeNode(partion001);
-		parentTile->children.push_back(partion001);
-
-	}
-
-	if (partion010->myMeshInfos.size() == 0) {
-		delete partion010;
-		partion010 = nullptr;
-	}
-	else {
-		splitTreeNode(partion010);
-		parentTile->children.push_back(partion010);
-
-	}
-
-	if (partion011->myMeshInfos.size() == 0) {
-		delete partion011;
-		partion011 = nullptr;
-	}
-	else {
-		splitTreeNode(partion011);
-		parentTile->children.push_back(partion011);
-
-	}
-
-	if (partion100->myMeshInfos.size() == 0) {
-		delete partion100;
-		partion100 = nullptr;
-	}
-	else {
-		splitTreeNode(partion100);
-		parentTile->children.push_back(partion100);
-
-	}
-
-	if (partion101->myMeshInfos.size() == 0) {
-		delete partion101;
-		partion101 = nullptr;
-	}
-	else {
-		splitTreeNode(partion101);
-		parentTile->children.push_back(partion101);
-
-	}
-
-	if (partion110->myMeshInfos.size() == 0) {
-		delete partion110;
-		partion110 = nullptr;
-	}
-	else {
-		splitTreeNode(partion110);
-		parentTile->children.push_back(partion110);
-
-	}
-
-	if (partion111->myMeshInfos.size() == 0) {
-		delete partion111;
-		partion111 = nullptr;
-	}
-	else {
-		splitTreeNode(partion111);
-		parentTile->children.push_back(partion111);
-
-	}
-	*/
-	//end
-
-
-
-
-	m_correntDepth--;
 }
 
 void SpatialTree::recomputeTileBox(TileInfo* parent)
@@ -362,14 +171,187 @@ void SpatialTree::recomputeTileBox(TileInfo* parent)
 	for (int i = 0; i < parent->children.size(); ++i) {
 		recomputeTileBox(parent->children[i]);
 	}
-	//20210714 赵伟宏 已经更新了
-	/*parent->boundingBox->min.X() = parent->boundingBox->min.Y() = parent->boundingBox->min.Z() = INFINITY;
-	parent->boundingBox->max.X() = parent->boundingBox->max.Y() = parent->boundingBox->max.Z() = -INFINITY;
-	for (int i = 0; i < parent->myMeshInfos.size(); ++i) {
-		parent->boundingBox->Add(parent->myMeshInfos[i].myMesh->bbox);
-	}*/
-	//end 
 	if (parent->children.size() > 0) {
 		parent->myMeshInfos.clear();
 	}
+}
+
+void SpatialTree::buildTree(TileInfo* parent, BuildNode* node) {
+	if (m_correntDepth > m_treeDepth) {
+		m_treeDepth = m_correntDepth;
+	}
+	m_correntDepth++;
+	TileInfo* pLeft = new TileInfo;
+	TileInfo* pRight = new TileInfo;
+
+	if (node->children[0] != nullptr)buildTree(pLeft, node->children[0]);
+	if (node->children[1] != nullptr)buildTree(pRight, node->children[1]);
+	parent->boundingBox = &node->bounds;
+	for (int i = node->firstPrimOffset; i < node->firstPrimOffset + node->nPrimitives; i++) {
+	}
+	m_correntDepth--;
+}
+
+TreeBuilder::TreeBuilder(TileInfo* rootTile)
+{
+	for (int i = 0; i < rootTile->myMeshInfos.size(); i++) {
+		primitives.push_back(rootTile->myMeshInfos[i].myMesh);
+	}
+	maxPrimInNode = 20;
+	method = TreeBuilder::SplitMethod::SAH;
+}
+
+TreeBuilder::~TreeBuilder()
+{
+}
+BuildNode* TreeBuilder::recursiveBuild(std::vector<PrimitiveInfo>& primitiveInfo, int start, int end, std::vector<MyMesh*>& orderedPrims) {
+	BuildNode* node = new BuildNode();
+	Box3f bounds;
+	bounds.min.X() = bounds.min.Y() = bounds.min.Z() = INFINITY;
+	bounds.max.X() = bounds.max.Y() = bounds.max.Z() = -INFINITY;
+	for (int i = start; i < end; ++i) {
+		bounds.Add(primitiveInfo[i].bounds);
+	}
+
+	int nPrimitive = end - start;
+
+	if (nPrimitive == 1) {
+		int firstOffset = orderedPrims.size();
+		for (int i = start; i < end; i++) {
+			int primNum = primitiveInfo[i].primitiveNumber;
+			orderedPrims.push_back(primitives[primNum]);
+		}
+		node->InitLeaf(firstOffset, nPrimitive, bounds);
+		return node;
+	}
+	else {
+		Box3f centroidBounds;
+		centroidBounds.min.X() = centroidBounds.min.Y() = centroidBounds.min.Z() = INFINITY;
+		centroidBounds.max.X() = centroidBounds.max.Y() = centroidBounds.max.Z() = -INFINITY;
+		for (int i = start; i < end; i++) {
+			centroidBounds.Add(primitiveInfo[i].centroid);
+		}
+		int dim = centroidBounds.MaxDim();
+		int mid = (start + end) / 2;
+		if (centroidBounds.max[dim] == centroidBounds.min[dim]) {
+			int firstOffset = orderedPrims.size();
+			for (int i = start; i < end; i++) {
+				int primNum = primitiveInfo[i].primitiveNumber;
+				orderedPrims.push_back(primitives[primNum]);
+			}
+			node->InitLeaf(firstOffset, nPrimitive, bounds);
+			return node;
+		}
+		else {
+			switch (method)
+			{
+			case SplitMethod::Middle: {
+				float pmid = (centroidBounds.min[dim], centroidBounds.max[dim]) / 2;
+				PrimitiveInfo* midPtr = std::partition(&primitiveInfo[start], &primitiveInfo[end - 1] + 1,
+					[dim, pmid](const PrimitiveInfo& pi) {
+						return pi.centroid[dim] < pmid;
+					});
+				mid = midPtr - &primitiveInfo[0];
+				if (mid != start && mid != end)
+					break;
+			}
+			case SplitMethod::EqualCounts: {
+				mid = (start + end) / 2;
+				std::nth_element(&primitiveInfo[start], &primitiveInfo[mid], &primitiveInfo[end - 1] + 1,
+					[dim](const PrimitiveInfo& a, const PrimitiveInfo& b) {
+						return a.centroid[dim] < b.centroid[dim];
+					});
+				break;
+			}
+			case SplitMethod::SAH:
+			default: {
+				if (nPrimitive <= 4 ) {
+					mid = (start + end) / 2;
+					std::nth_element(&primitiveInfo[start], &primitiveInfo[mid], &primitiveInfo[end - 1] + 1,
+						[dim](const PrimitiveInfo& a, const PrimitiveInfo& b) {
+							return a.centroid[dim] < b.centroid[dim];
+						});
+					break;
+				}
+				else {
+					constexpr int nBuckets = 12;
+					struct BucketInfo
+					{
+						int count = 0;
+						Box3f bounds;
+					};
+					BucketInfo buckets[nBuckets];
+					for (int i = 0; i < 12; i++) {
+						buckets[i].bounds.min.X() = buckets[i].bounds.min.Y() = buckets[i].bounds.min.Z() = INFINITY;
+						buckets[i].bounds.max.X() = buckets[i].bounds.max.Y() = buckets[i].bounds.max.Z() = -INFINITY;
+					}
+					for (int i = start; i < end; i++) {
+
+						int b = nBuckets * Offset(primitiveInfo[i].centroid,centroidBounds)[dim];
+						if (b == nBuckets)b = nBuckets - 1;
+						buckets[b].count++;
+						buckets[b].bounds.Add(primitiveInfo[i].bounds);
+					}
+					float cost[nBuckets-1];
+					for (int i = 0; i < nBuckets - 1; ++i) {
+						Box3f b0, b1;
+						b0.min.X() = b0.min.Y() = b0.min.Z() = INFINITY;
+						b0.max.X() = b0.max.Y() = b0.max.Z() = -INFINITY;
+						b1.min.X() = b1.min.Y() = b1.min.Z() = INFINITY;
+						b1.max.X() = b1.max.Y() = b1.max.Z() = -INFINITY;
+						int count0 = 0, count1 = 0;
+						for (int j = 0; j <= i; j++) {
+							b0.Add(buckets[j].bounds);
+							count0++;
+						}
+						for (int j = i + 1; j < nBuckets; j++) {
+							b1.Add(buckets[j].bounds);
+							count1++;
+						}
+						cost[i] = 0.125f + (count0 * b0.Volume() + count1 * b1.Volume()) / bounds.Volume();
+					}
+					float minCost = cost[0];
+					int minCostSplit = 0;
+					for (int i = 0; i < nBuckets; i++) {
+						if (cost[i] < minCost) {
+							minCost = cost[i];
+							minCostSplit = i;
+						}
+					}
+					float leafCost = nPrimitive;
+					if (nPrimitive>maxPrimInNode|| minCost < leafCost) {
+						PrimitiveInfo* pmid = std::partition(&primitiveInfo[start], &primitiveInfo[end - 1] + 1,
+							[=](const PrimitiveInfo& pi) {
+								int b = nBuckets * Offset(pi.centroid, centroidBounds)[dim];
+								if (b == nBuckets)b = nBuckets - 1;
+								return b <= minCostSplit;
+							});
+						mid = pmid - &primitiveInfo[0];
+					}
+					else
+					{
+						int firstOffset = orderedPrims.size();
+						for (int i = start; i < end; i++) {
+							int primNum = primitiveInfo[i].primitiveNumber;
+							orderedPrims.push_back(primitives[primNum]);
+						}
+						node->InitLeaf(firstOffset, nPrimitive, bounds);
+						return node;
+					}
+				}
+			}
+			}
+			node->InitInterior(dim, recursiveBuild(primitiveInfo, start, mid, orderedPrims), recursiveBuild(primitiveInfo, mid, end, orderedPrims));
+		}
+	}
+}
+BuildNode* TreeBuilder::getRoot(){
+	std::vector<PrimitiveInfo> primitiveInfo(primitives.size());
+	for (int i = 0; i < primitives.size(); i++) {
+		primitiveInfo[i] = { i,primitives[i]->bbox };
+	}
+	std::vector<MyMesh*> orderedPrims;
+	BuildNode* root;
+	root = recursiveBuild(primitiveInfo, 0, primitives.size(), orderedPrims);
+	primitives.swap(orderedPrims);
 }

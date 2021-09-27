@@ -158,6 +158,7 @@ public:
     std::vector<MyMeshInfo> myMeshInfos;
     std::vector<TileInfo* > children;
     Box3f* boundingBox;
+    TileInfo* parent;
     int originalVertexCount;
     std::string contentUri;
 };

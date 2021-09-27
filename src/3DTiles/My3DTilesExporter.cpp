@@ -9,7 +9,7 @@ My3DTilesExporter::My3DTilesExporter(const Option& op):
 {
 	importer = new Assimp::Importer();
 	io = new Assimp::DefaultIOSystem();
-	this->mScene = importer->ReadFile(this->op.filename, aiProcess_Triangulate | aiProcess_JoinIdenticalVertices);
+	this->mScene = importer->ReadFile(this->op.filename, aiProcess_Triangulate);
 	rootTile = nullptr;
 	myMeshes.clear();
 	m_currentTileLevel = 0;
@@ -19,15 +19,6 @@ My3DTilesExporter::My3DTilesExporter(const Option& op):
 
 My3DTilesExporter::~My3DTilesExporter()
 {
-	/*if (mScene != nullptr) {
-		delete mScene;
-		mScene = nullptr;
-	}
-
-	if (rootTile != nullptr) {
-		delete rootTile;
-		rootTile = nullptr;
-	}*/
 }
 
 void My3DTilesExporter::createMyMesh()
@@ -69,10 +60,7 @@ void My3DTilesExporter::createMyMesh()
 		}
 		if (!mesh->vert[0].normalExist)
 		{
-			tri::UpdateNormal<MyMesh>::PerVertexClear(*mesh);
 			tri::UpdateNormal<MyMesh>::PerVertex(*mesh);
-			/*tri::UpdateNormal<MyMesh>::PerVertexAngleWeighted(*mesh);
-			tri::UpdateNormal<MyMesh>::PerVertexNelsonMaxWeighted(*mesh);*/
 			tri::UpdateNormal<MyMesh>::NormalizePerVertex(*mesh);
 		}
 
@@ -238,8 +226,6 @@ nlohmann::json My3DTilesExporter::traverseExportTileSetJson(TileInfo* tileInfo)
 
 	nlohmann::json content = nlohmann::json({});
 	content["uri"] = tileInfo->contentUri;
-	/*content["boundingVolume"] = nlohmann::json({});
-	content["boundingVolume"]["sphere"] = boundingSphere;*/
 	parent["content"] = content;
 
 	if (tileInfo->children.size() > 0)
@@ -266,7 +252,6 @@ void My3DTilesExporter::export3DTilesset(TileInfo* rootTile)
 	nlohmann::json root = nlohmann::json({});
 	tilesetJson["root"] = traverseExportTileSetJson(rootTile);
 
-	// add a dummy transform to root to make the tileset position at globe surface.
 	nlohmann::json dummyTransform = nlohmann::json::array();
 	dummyTransform.push_back(1);
 	dummyTransform.push_back(0);
@@ -299,18 +284,13 @@ void My3DTilesExporter::exportTiles(TileInfo* rootTile)
 		rootTile->myMeshInfos.insert(rootTile->myMeshInfos.end(), rootTile->children[i]->myMeshInfos.begin(), rootTile->children[i]->myMeshInfos.end());
 	}
 	vector<MyMeshInfo> temp;
-	//修改202010614 赵伟宏
-
 	if (rootTile->level != 0) {
 		sort(rootTile->myMeshInfos.begin(), rootTile->myMeshInfos.end(), myCompareDim);
 		int len = rootTile->myMeshInfos.size();
-
-		//修改202010728 赵伟宏
 		int vn_count = 0;
 		for (int i = 0; i < rootTile->myMeshInfos.size(); ++i) {
 			vn_count += rootTile->myMeshInfos[i].myMesh->vn;
 		}
-		//end
 		if (len > 0) {
 			int len_ = len * (float)(1.0 / 3.0);
 			unsigned int split_point_vn = (unsigned int)(vn_count * (float)(2.0 / 3.0));
@@ -323,21 +303,12 @@ void My3DTilesExporter::exportTiles(TileInfo* rootTile)
 					rootTile->myMeshInfos.pop_back();
 				}
 				else {
-					//rootTile->originalVertexCount = vn_count;
 					break;
 				}
-				/*if (rootTile->myMeshInfos[i].myMesh->bbox.Diag() > split_point) {
-					temp.push_back(rootTile->myMeshInfos.back());
-					rootTile->myMeshInfos.pop_back();
-				}
-				else {
-					break;
-				}*/
+				
 			}
-
 		}
 	}
-	//end
 	char buffername[1024];
 	int fileIdx = 0;
 	if (m_levelAccumMap.count(rootTile->level) > 0) {
@@ -351,22 +322,20 @@ void My3DTilesExporter::exportTiles(TileInfo* rootTile)
 	sprintf(buffername, "%d-%d", rootTile->level, fileIdx);
 	rootTile->contentUri = std::string(buffername) + ".b3dm";
 	simplifyMesh(rootTile, buffername);
-	//修改20210614 赵伟宏
+	
 	if (rootTile->level != 0) {
 		rootTile->myMeshInfos.clear();
 		for (auto v : temp) {
 			rootTile->myMeshInfos.push_back(v);
 		}
 	}
-	//end
+	
 	m_currentTileLevel--;
 }
 
 void My3DTilesExporter::simplifyMesh(TileInfo* tileInfo, char* bufferName)
 {
 	MyMeshOptimizer op(tileInfo->myMeshInfos);
-	//op.Domerge();
-	//float maxLength = max(max(tileInfo->boundingBox->DimX(), tileInfo->boundingBox->DimY()), tileInfo->boundingBox->DimZ());
 	float maxLength = tileInfo->boundingBox->Diag();
 	tileInfo->geometryError = op.DoDecemation(maxLength);
 	if (tileInfo->children.size() == 0)tileInfo->geometryError = 0.0;
