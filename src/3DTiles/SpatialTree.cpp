@@ -354,4 +354,5 @@ BuildNode* TreeBuilder::getRoot(){
 	BuildNode* root;
 	root = recursiveBuild(primitiveInfo, 0, primitives.size(), orderedPrims);
 	primitives.swap(orderedPrims);
+	return root;
 }

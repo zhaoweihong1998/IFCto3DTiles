@@ -22,27 +22,6 @@ struct Option
 	}
 };
 
-class SpatialTree
-{
-public:
-	SpatialTree(const aiScene& mScene, vector<MyMesh*>& meshes, const Option& op);
-	~SpatialTree(){}
-	void Initialize();
-	TileInfo* GetTilesetInfo();
-private:
-	BuildNode* root;
-	const aiScene* mScene;
-	vector<MyMesh*>* m_meshes;
-	int m_correntDepth;
-	int m_treeDepth;
-	TileInfo* m_pTileRoot;
-	const Option op;
-private:
-	void splitTreeNode(TileInfo* parentTile);
-	void recomputeTileBox(TileInfo* parent);
-	void buildTree(TileInfo* parent,BuildNode* node);
-};
-
 struct BuildNode
 {
 	void InitLeaf(int first, int n, const Box3f& b) {
@@ -66,6 +45,29 @@ struct BuildNode
 	BuildNode* children[2];
 	int splitAxis, firstPrimOffset, nPrimitives;
 };
+
+class SpatialTree
+{
+public:
+	SpatialTree(const aiScene& mScene, vector<MyMesh*>& meshes, const Option& op);
+	~SpatialTree(){}
+	void Initialize();
+	TileInfo* GetTilesetInfo();
+private:
+	BuildNode* root;
+	const aiScene* mScene;
+	vector<MyMesh*>* m_meshes;
+	int m_correntDepth;
+	int m_treeDepth;
+	TileInfo* m_pTileRoot;
+	const Option op;
+private:
+	void splitTreeNode(TileInfo* parentTile);
+	void recomputeTileBox(TileInfo* parent);
+	void buildTree(TileInfo* parent,BuildNode* node);
+};
+
+
 
 class TreeBuilder
 {
