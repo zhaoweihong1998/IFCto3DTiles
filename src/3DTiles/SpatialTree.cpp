@@ -9,6 +9,7 @@ SpatialTree::SpatialTree(const aiScene& mScene, vector<MyMesh*>& meshes, const O
 	this->m_correntDepth = 0;
 	this->m_treeDepth = 0;
 	root = nullptr;
+	Tree = nullptr;
 }
 
 void SpatialTree::Initialize()
@@ -32,19 +33,23 @@ void SpatialTree::Initialize()
 
 TileInfo* SpatialTree::GetTilesetInfo()
 {
-	if (m_treeDepth < op.Level) {
-		for (int i = 0; i < op.Level - m_treeDepth; ++i) {
-			TileInfo* tileInfo = new TileInfo;
-			tileInfo->boundingBox = m_pTileRoot->boundingBox;
-			tileInfo->myMeshInfos = m_pTileRoot->myMeshInfos;
-			tileInfo->children.push_back(m_pTileRoot);
-			m_pTileRoot = tileInfo;
+	if (true) {
+		if (m_treeDepth < op.Level) {
+			for (int i = 0; i < op.Level - m_treeDepth; ++i) {
+				TileInfo* tileInfo = new TileInfo;
+				tileInfo->boundingBox = m_pTileRoot->boundingBox;
+				tileInfo->myMeshInfos = m_pTileRoot->myMeshInfos;
+				tileInfo->children.push_back(m_pTileRoot);
+				m_pTileRoot = tileInfo;
+			}
+			m_treeDepth = op.Level;
 		}
-		m_treeDepth = op.Level;
+		recomputeTileBox(m_pTileRoot);
+		return m_pTileRoot;
 	}
-
-	recomputeTileBox(m_pTileRoot);
-	return m_pTileRoot;
+	else {
+		return m_pTileRoot;
+	}
 }
 
 bool myCompareX(MyMeshInfo& a, MyMeshInfo& b) {
@@ -61,7 +66,7 @@ bool myCompareZ(MyMeshInfo& a, MyMeshInfo& b) {
 
 void SpatialTree::splitTreeNode(TileInfo* parentTile)
 {
-	if(true)
+	if(!op.newMethod)
 	{
 		if (m_correntDepth > m_treeDepth) {
 			m_treeDepth = m_correntDepth;
@@ -159,10 +164,11 @@ void SpatialTree::splitTreeNode(TileInfo* parentTile)
 		}
 		m_correntDepth--;
 	}
-	else
-	{
-		TreeBuilder Tree(parentTile);
-		root = Tree.getRoot();
+	else {
+		Tree = new TreeBuilder(parentTile);
+		Tree->setMinMeshPerNode(op.Min_Mesh_Per_Node);
+		root = Tree->getRoot();
+		buildTree(parentTile, root);
 	}
 }
 
@@ -184,10 +190,19 @@ void SpatialTree::buildTree(TileInfo* parent, BuildNode* node) {
 	TileInfo* pLeft = new TileInfo;
 	TileInfo* pRight = new TileInfo;
 
-	if (node->children[0] != nullptr)buildTree(pLeft, node->children[0]);
-	if (node->children[1] != nullptr)buildTree(pRight, node->children[1]);
+	if (node->children[0] != nullptr) {
+		buildTree(pLeft, node->children[0]);
+		parent->children.push_back(pLeft);
+	}
+	if (node->children[1] != nullptr) {
+		buildTree(pRight, node->children[1]);
+		parent->children.push_back(pRight);
+	}
 	parent->boundingBox = &node->bounds;
-	for (int i = node->firstPrimOffset; i < node->firstPrimOffset + node->nPrimitives; i++) {
+	if (parent->children.size() < 1) {
+		for (int i = node->firstPrimOffset; i < node->firstPrimOffset + node->nPrimitives; i++) {
+			parent->myMeshInfos.push_back(*Tree->getMeshInfo(i));
+		}
 	}
 	m_correntDepth--;
 }
@@ -195,16 +210,16 @@ void SpatialTree::buildTree(TileInfo* parent, BuildNode* node) {
 TreeBuilder::TreeBuilder(TileInfo* rootTile)
 {
 	for (int i = 0; i < rootTile->myMeshInfos.size(); i++) {
-		primitives.push_back(rootTile->myMeshInfos[i].myMesh);
+		primitives.push_back(&rootTile->myMeshInfos[i]);
 	}
-	maxPrimInNode = 20;
+	maxPrimInNode = 500;
 	method = TreeBuilder::SplitMethod::SAH;
 }
 
 TreeBuilder::~TreeBuilder()
 {
 }
-BuildNode* TreeBuilder::recursiveBuild(std::vector<PrimitiveInfo>& primitiveInfo, int start, int end, std::vector<MyMesh*>& orderedPrims) {
+BuildNode* TreeBuilder::recursiveBuild(std::vector<PrimitiveInfo>& primitiveInfo, int start, int end, std::vector< MyMeshInfo*>& orderedPrims) {
 	BuildNode* node = new BuildNode();
 	Box3f bounds;
 	bounds.min.X() = bounds.min.Y() = bounds.min.Z() = INFINITY;
@@ -302,24 +317,24 @@ BuildNode* TreeBuilder::recursiveBuild(std::vector<PrimitiveInfo>& primitiveInfo
 						int count0 = 0, count1 = 0;
 						for (int j = 0; j <= i; j++) {
 							b0.Add(buckets[j].bounds);
-							count0++;
+							count0+=buckets[j].count;
 						}
 						for (int j = i + 1; j < nBuckets; j++) {
 							b1.Add(buckets[j].bounds);
-							count1++;
+							count1+=buckets[j].count;
 						}
 						cost[i] = 0.125f + (count0 * b0.Volume() + count1 * b1.Volume()) / bounds.Volume();
 					}
 					float minCost = cost[0];
 					int minCostSplit = 0;
-					for (int i = 0; i < nBuckets; i++) {
+					for (int i = 1; i < nBuckets-1; i++) {
 						if (cost[i] < minCost) {
 							minCost = cost[i];
 							minCostSplit = i;
 						}
 					}
 					float leafCost = nPrimitive;
-					if (nPrimitive>maxPrimInNode|| minCost < leafCost) {
+					if (nPrimitive>maxPrimInNode && minCost < leafCost) {
 						PrimitiveInfo* pmid = std::partition(&primitiveInfo[start], &primitiveInfo[end - 1] + 1,
 							[=](const PrimitiveInfo& pi) {
 								int b = nBuckets * Offset(pi.centroid, centroidBounds)[dim];
@@ -348,9 +363,9 @@ BuildNode* TreeBuilder::recursiveBuild(std::vector<PrimitiveInfo>& primitiveInfo
 BuildNode* TreeBuilder::getRoot(){
 	std::vector<PrimitiveInfo> primitiveInfo(primitives.size());
 	for (int i = 0; i < primitives.size(); i++) {
-		primitiveInfo[i] = { i,primitives[i]->bbox };
+		primitiveInfo[i] = { i,primitives[i]->myMesh->bbox };
 	}
-	std::vector<MyMesh*> orderedPrims;
+	std::vector<MyMeshInfo*> orderedPrims;
 	BuildNode* root;
 	root = recursiveBuild(primitiveInfo, 0, primitives.size(), orderedPrims);
 	primitives.swap(orderedPrims);

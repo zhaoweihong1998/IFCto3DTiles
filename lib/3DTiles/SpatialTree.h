@@ -11,6 +11,7 @@ struct Option
 	bool binary;
 	bool log;
 	std::string outputDir;
+	bool newMethod;
 	Option() {
 		Max_Vertices_per_Node = 500;
 		Min_Mesh_Per_Node = 10;
@@ -19,6 +20,7 @@ struct Option
 		binary = false;
 		log = false;
 		outputDir = "output";
+		newMethod = false;
 	}
 };
 
@@ -46,6 +48,49 @@ struct BuildNode
 	int splitAxis, firstPrimOffset, nPrimitives;
 };
 
+class TreeBuilder
+{
+public:
+	TreeBuilder(TileInfo* rootTile);
+	~TreeBuilder();
+	BuildNode* getRoot();
+	MyMeshInfo* getMeshInfo(int i) {
+		return primitives[i];
+	}
+	void setMinMeshPerNode(int number) {
+		maxPrimInNode = number;
+	}
+private:
+	Point3f Offset(const Point3f& p, const Box3f& bounds) {
+		Point3f o = p - bounds.min;
+		if (bounds.max.X() > bounds.min.X())o.X() /= bounds.max.X() - bounds.min.X();
+		if (bounds.max.Y() > bounds.min.Y())o.Y() /= bounds.max.Y() - bounds.min.Y();
+		if (bounds.max.Z() > bounds.min.Z())o.Z() /= bounds.max.Z() - bounds.min.Z();
+		return o;
+	}
+	enum class SplitMethod
+	{
+		Middle, EqualCounts, SAH
+	};
+
+	struct PrimitiveInfo
+	{
+		PrimitiveInfo() {
+
+		}
+		PrimitiveInfo(int primitiveNumber, const Box3f& bounds) :
+			primitiveNumber(primitiveNumber), bounds(bounds), centroid(bounds.Center()) {}
+		int primitiveNumber;
+		Box3f bounds;
+		Point3f centroid;
+	};
+	std::vector<MyMeshInfo*> primitives;
+	SplitMethod method;
+	int maxPrimInNode;
+	BuildNode* recursiveBuild(std::vector<PrimitiveInfo>& primitiveInfo, int start, int end, std::vector<MyMeshInfo*>& orderedPrims);
+
+};
+
 class SpatialTree
 {
 public:
@@ -61,6 +106,7 @@ private:
 	int m_treeDepth;
 	TileInfo* m_pTileRoot;
 	const Option op;
+	TreeBuilder *Tree;
 private:
 	void splitTreeNode(TileInfo* parentTile);
 	void recomputeTileBox(TileInfo* parent);
@@ -69,42 +115,3 @@ private:
 
 
 
-class TreeBuilder
-{
-public:
-	TreeBuilder(TileInfo* rootTile);
-	~TreeBuilder();
-	BuildNode* getRoot();
-	MyMesh* getMesh(int i) {
-		return primitives[i];
-	}
-private:
-	Point3f Offset(const Point3f& p,const Box3f& bounds) {
-		Point3f o = p - bounds.min;
-		if (bounds.max.X() > bounds.min.X())o.X() /= bounds.max.X() - bounds.min.X();
-		if (bounds.max.Y() > bounds.min.Y())o.Y() /= bounds.max.Y() - bounds.min.Y();
-		if (bounds.max.Z() > bounds.min.Z())o.Z() /= bounds.max.Z() - bounds.min.Z();
-		return o;
-	}
-	enum class SplitMethod
-	{
-		Middle, EqualCounts,SAH
-	};
-
-	struct PrimitiveInfo
-	{
-		PrimitiveInfo() {
-			
-		}
-		PrimitiveInfo(int primitiveNumber, const Box3f& bounds):
-			primitiveNumber(primitiveNumber),bounds(bounds),centroid(bounds.Center()){}
-		int primitiveNumber;
-		Box3f bounds;
-		Point3f centroid;
-	};
-	std::vector<MyMesh*> primitives;
-	SplitMethod method;
-	int maxPrimInNode;
-	BuildNode* recursiveBuild(std::vector<PrimitiveInfo>& primitiveInfo, int start, int end, std::vector<MyMesh*>& orderedPrims);
-	
-};

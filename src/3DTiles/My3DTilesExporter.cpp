@@ -278,23 +278,41 @@ void My3DTilesExporter::export3DTilesset(TileInfo* rootTile)
 
 void My3DTilesExporter::exportTiles(TileInfo* rootTile)
 {
-	rootTile->level = m_currentTileLevel++;
+	rootTile->level = ++m_currentTileLevel;
+	char buffername[1024];
+	int fileIdx = 1;
+	if (m_levelAccumMap.count(rootTile->level) > 0) {
+		fileIdx = m_levelAccumMap.at(rootTile->level);
+		fileIdx++;
+		m_levelAccumMap.at(rootTile->level)++;
+	}
+	else {
+		m_levelAccumMap.insert(make_pair(rootTile->level, fileIdx));
+	}
+	sprintf(buffername, "%d-%d", rootTile->level, fileIdx);
+	rootTile->contentUri = std::string(buffername) + ".b3dm";
+
+
 	for (int i = 0; i < rootTile->children.size(); ++i) {
 		exportTiles(rootTile->children[i]);
 		rootTile->myMeshInfos.insert(rootTile->myMeshInfos.end(), rootTile->children[i]->myMeshInfos.begin(), rootTile->children[i]->myMeshInfos.end());
 	}
+
+	int vn_count = 0;
+	for (int i = 0; i < rootTile->myMeshInfos.size(); ++i) {
+		vn_count += rootTile->myMeshInfos[i].myMesh->vn;
+	}
+	rootTile->originalVertexCount = vn_count;
+
+	if (op.log) {
+		std::cout << "[before siftting]" << buffername << "  size of meshes:" << rootTile->myMeshInfos.size() <<"   " << "numver of vertices:" << rootTile->originalVertexCount<< std::endl;
+	}
 	vector<MyMeshInfo> temp;
-	if (rootTile->level != 0) {
+	if (rootTile->level != 1) {
 		sort(rootTile->myMeshInfos.begin(), rootTile->myMeshInfos.end(), myCompareDim);
 		int len = rootTile->myMeshInfos.size();
-		int vn_count = 0;
-		for (int i = 0; i < rootTile->myMeshInfos.size(); ++i) {
-			vn_count += rootTile->myMeshInfos[i].myMesh->vn;
-		}
 		if (len > 0) {
-			int len_ = len * (float)(1.0 / 3.0);
 			unsigned int split_point_vn = (unsigned int)(vn_count * (float)(2.0 / 3.0));
-			float split_point = rootTile->myMeshInfos[len_].myMesh->bbox.Diag();
 			for (int i = len - 1; i >= 0; i--) {
 				unsigned int temp_value = vn_count - rootTile->myMeshInfos.back().myMesh->vn;
 				if (temp_value > split_point_vn) {
@@ -309,21 +327,16 @@ void My3DTilesExporter::exportTiles(TileInfo* rootTile)
 			}
 		}
 	}
-	char buffername[1024];
-	int fileIdx = 0;
-	if (m_levelAccumMap.count(rootTile->level) > 0) {
-		fileIdx = m_levelAccumMap.at(rootTile->level);
-		fileIdx++;
-		m_levelAccumMap.at(rootTile->level)++;
+	if (op.log) {
+		vn_count = 0;
+		for (int i = 0; i < rootTile->myMeshInfos.size(); ++i) {
+			vn_count += rootTile->myMeshInfos[i].myMesh->vn;
+		}
+		rootTile->originalVertexCount = vn_count;
+		std::cout << "[after siftting]" << buffername << "  size of meshes:" << rootTile->myMeshInfos.size() << "   " << "numver of vertices:" << rootTile->originalVertexCount << std::endl;
 	}
-	else {
-		m_levelAccumMap.insert(make_pair(rootTile->level, fileIdx));
-	}
-	sprintf(buffername, "%d-%d", rootTile->level, fileIdx);
-	rootTile->contentUri = std::string(buffername) + ".b3dm";
 	simplifyMesh(rootTile, buffername);
-	
-	if (rootTile->level != 0) {
+	if (rootTile->level != 1) {
 		rootTile->myMeshInfos.clear();
 		for (auto v : temp) {
 			rootTile->myMeshInfos.push_back(v);

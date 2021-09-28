@@ -87,8 +87,21 @@ void main(int argc, const char* argv[]){
             }
             else {
                 std::stringstream s;
-                s << argv[i++];
+                s << argv[++i];
                 s >> op.Min_Mesh_Per_Node;
+            }
+        }
+        else if (!strcmp(argv[i], "--newMethod") || !strcmp(argv[i], "-newMethod")) {
+            if (i + 1 == argc) {
+                std::cout << "missing newMethod" << std::endl;
+            }
+            else {
+                if (!strcmp(argv[i + 1], "true")) {
+                    op.newMethod = true;
+                }
+                else {
+                    op.newMethod = false;
+                }
             }
         }
     }
