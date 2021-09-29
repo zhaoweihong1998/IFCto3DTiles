@@ -71,14 +71,14 @@ void main(int argc, const char* argv[]){
                 }
             }
         }
-        else if (!strcmp(argv[i], "--maxVerticesPerNode") || !strcmp(argv[i], "-maxVerticesPerNode")) {
+        else if (!strcmp(argv[i], "--maxMeshPerNode") || !strcmp(argv[i], "-maxMeshPerNode")) {
             if (i + 1 == argc) {
-                std::cout << "missing maxVerticesPerNode" << std::endl;
+                std::cout << "missing maxMeshPerNode" << std::endl;
             }
             else {
                 std::stringstream s;
                 s << argv[++i];
-                s >> op.Max_Vertices_per_Node;
+                s >> op.Max_Mesh_per_Node;
             }
         }
         else if (!strcmp(argv[i], "--minMeshPerNode") || !strcmp(argv[i], "-minMeshPerNode")) {

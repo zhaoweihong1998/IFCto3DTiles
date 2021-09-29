@@ -28,12 +28,12 @@ void SpatialTree::Initialize()
 	}
 	m_pTileRoot->boundingBox = sceneBox;
 	m_pTileRoot->parent = nullptr;
-	splitTreeNode(m_pTileRoot);
+	if(m_pTileRoot->myMeshInfos.size()>op.Max_Mesh_per_Node)splitTreeNode(m_pTileRoot);
 }
 
 TileInfo* SpatialTree::GetTilesetInfo()
 {
-	if (true) {
+	if (!op.newMethod) {
 		if (m_treeDepth < op.Level) {
 			for (int i = 0; i < op.Level - m_treeDepth; ++i) {
 				TileInfo* tileInfo = new TileInfo;
@@ -48,6 +48,7 @@ TileInfo* SpatialTree::GetTilesetInfo()
 		return m_pTileRoot;
 	}
 	else {
+		recomputeTileBox(m_pTileRoot);
 		return m_pTileRoot;
 	}
 }
@@ -286,7 +287,6 @@ BuildNode* TreeBuilder::recursiveBuild(std::vector<PrimitiveInfo>& primitiveInfo
 						[dim](const PrimitiveInfo& a, const PrimitiveInfo& b) {
 							return a.centroid[dim] < b.centroid[dim];
 						});
-					break;
 				}
 				else {
 					constexpr int nBuckets = 12;
@@ -354,11 +354,13 @@ BuildNode* TreeBuilder::recursiveBuild(std::vector<PrimitiveInfo>& primitiveInfo
 						return node;
 					}
 				}
+				break;
 			}
 			}
 			node->InitInterior(dim, recursiveBuild(primitiveInfo, start, mid, orderedPrims), recursiveBuild(primitiveInfo, mid, end, orderedPrims));
 		}
 	}
+	return node;
 }
 BuildNode* TreeBuilder::getRoot(){
 	std::vector<PrimitiveInfo> primitiveInfo(primitives.size());

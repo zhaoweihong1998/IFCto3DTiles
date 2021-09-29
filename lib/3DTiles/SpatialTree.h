@@ -4,7 +4,7 @@
 
 struct Option
 {
-	int Max_Vertices_per_Node;
+	int Max_Mesh_per_Node;
 	int Min_Mesh_Per_Node;
 	int Level;
 	string filename;
@@ -13,8 +13,8 @@ struct Option
 	std::string outputDir;
 	bool newMethod;
 	Option() {
-		Max_Vertices_per_Node = 500;
-		Min_Mesh_Per_Node = 10;
+		Max_Mesh_per_Node = 500;
+		Min_Mesh_Per_Node = 300;
 		Level = 0;
 		filename = "";
 		binary = false;
