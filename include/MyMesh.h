@@ -61,7 +61,7 @@ public:
     unsigned int maxterialIndex;
     unsigned int batchId;
     string name;
-    static void ConcatMyMesh(MyMesh* dest, MyMesh* src)
+    static void ConcatMyMesh(shared_ptr<MyMesh> dest, shared_ptr<MyMesh> src)
     {
         
         VertexIterator vi = Allocator<MyMesh>::AddVertices(*dest, src->vn);
@@ -147,7 +147,7 @@ public:
         this->material = meshInfo.material;
         this->myMesh = meshInfo.myMesh;
     }
-    MyMesh* myMesh;
+    shared_ptr<MyMesh>  myMesh;
     unsigned int material;
 };
 
@@ -170,4 +170,6 @@ typedef typename MyMesh::EdgeIterator EdgeIterator;
 typedef typename MyMesh::ScalarType ScalarType;
 typedef typename MyMesh::VertexType VertexType;
 typedef typename MyMesh::FaceType FaceType;
+
+
 

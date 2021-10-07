@@ -25,7 +25,7 @@ void My3DTilesExporter::createMyMesh()
 {
 	for (int i = 0; i < mScene->mNumMeshes; ++i) {
 
-		MyMesh* mesh = new MyMesh();
+		shared_ptr<MyMesh> mesh(new MyMesh());
 		myMeshes.push_back(mesh);
 		aiMesh* m_mesh = mScene->mMeshes[i];
 		mesh->maxterialIndex = m_mesh->mMaterialIndex;
@@ -123,8 +123,8 @@ void My3DTilesExporter::createNodeBox()
 				MyMesh* mergeNode = new MyMesh();
 				
 				for (int k = 0; k < meshInfos[j].mNumMeshes; ++k) {
-					MyMesh* mesh_ = myMeshes[meshInfos[j].meshIndex[k]];
-					MyMesh* mesh = new MyMesh();
+					shared_ptr<MyMesh> mesh_ = myMeshes[meshInfos[j].meshIndex[k]];
+					shared_ptr<MyMesh> mesh(new MyMesh());
 					MyMesh::ConcatMyMesh(mesh, mesh_);
 					vector<MyVertex>::iterator it;
 					for (it = mesh->vert.begin(); it != mesh->vert.end(); ++it) {
@@ -159,8 +159,8 @@ void My3DTilesExporter::createNodeBox()
 			else {
 				
 				for (int k = 0; k < meshInfos[i].mNumMeshes; ++k) {
-					MyMesh* mesh_ = myMeshes[meshInfos[i].meshIndex[k]];
-					MyMesh* mesh = new MyMesh();
+					shared_ptr<MyMesh> mesh_ = myMeshes[meshInfos[i].meshIndex[k]];
+					shared_ptr<MyMesh> mesh(new MyMesh());
 					MyMesh::ConcatMyMesh(mesh, mesh_);
 					vector<MyVertex>::iterator it;
 
@@ -173,6 +173,7 @@ void My3DTilesExporter::createNodeBox()
 			}
 		}
 	}
+	myMeshes.clear();
 }
 
 void My3DTilesExporter::export3DTiles()
@@ -305,7 +306,7 @@ void My3DTilesExporter::exportTiles(TileInfo* rootTile)
 	rootTile->originalVertexCount = vn_count;
 
 	if (op.log) {
-		std::cout << "[before siftting]" << buffername << "  size of meshes:" << rootTile->myMeshInfos.size() <<"   " << "numver of vertices:" << rootTile->originalVertexCount<< std::endl;
+		std::cout << "[before siftting]\t" <<"Level-Node:" <<buffername<< "\tsize of meshes:" << rootTile->myMeshInfos.size() <<"\tnumver of vertices:" << rootTile->originalVertexCount<< std::endl;
 	}
 	vector<MyMeshInfo> temp;
 	if (rootTile->level != 1) {
@@ -333,7 +334,7 @@ void My3DTilesExporter::exportTiles(TileInfo* rootTile)
 			vn_count += rootTile->myMeshInfos[i].myMesh->vn;
 		}
 		rootTile->originalVertexCount = vn_count;
-		std::cout << "[after siftting]" << buffername << "  size of meshes:" << rootTile->myMeshInfos.size() << "   " << "numver of vertices:" << rootTile->originalVertexCount << std::endl;
+		std::cout << "[after siftting]\t" <<"Level-Node:" << buffername << "\tsize of meshes:" << rootTile->myMeshInfos.size() << "\tnumber of vertices:" << rootTile->originalVertexCount << std::endl;
 	}
 	simplifyMesh(rootTile, buffername);
 	if (rootTile->level != 1) {

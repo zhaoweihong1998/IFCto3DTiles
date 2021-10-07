@@ -1,6 +1,6 @@
 #include "SpatialTree.h"
 
-SpatialTree::SpatialTree(const aiScene& mScene, vector<MyMesh*>& meshes, const Option& op):
+SpatialTree::SpatialTree(const aiScene& mScene, vector<shared_ptr<MyMesh> >& meshes, const Option& op):
 	op(op)
 {
 	this->mScene = &mScene;
@@ -183,7 +183,7 @@ void SpatialTree::recomputeTileBox(TileInfo* parent)
 	}
 }
 
-void SpatialTree::buildTree(TileInfo* parent, BuildNode* node) {
+void SpatialTree::buildTree(TileInfo* parent, shared_ptr<BuildNode> node) {
 	if (m_correntDepth > m_treeDepth) {
 		m_treeDepth = m_correntDepth;
 	}
@@ -220,8 +220,8 @@ TreeBuilder::TreeBuilder(TileInfo* rootTile)
 TreeBuilder::~TreeBuilder()
 {
 }
-BuildNode* TreeBuilder::recursiveBuild(std::vector<PrimitiveInfo>& primitiveInfo, int start, int end, std::vector< MyMeshInfo*>& orderedPrims) {
-	BuildNode* node = new BuildNode();
+shared_ptr<BuildNode> TreeBuilder::recursiveBuild(std::vector<PrimitiveInfo>& primitiveInfo, int start, int end, std::vector< MyMeshInfo*>& orderedPrims) {
+	shared_ptr<BuildNode> node(new BuildNode());
 	Box3f bounds;
 	bounds.min.X() = bounds.min.Y() = bounds.min.Z() = INFINITY;
 	bounds.max.X() = bounds.max.Y() = bounds.max.Z() = -INFINITY;
@@ -362,14 +362,80 @@ BuildNode* TreeBuilder::recursiveBuild(std::vector<PrimitiveInfo>& primitiveInfo
 	}
 	return node;
 }
-BuildNode* TreeBuilder::getRoot(){
+shared_ptr<BuildNode> TreeBuilder::getRoot(){
 	std::vector<PrimitiveInfo> primitiveInfo(primitives.size());
 	for (int i = 0; i < primitives.size(); i++) {
 		primitiveInfo[i] = { i,primitives[i]->myMesh->bbox };
 	}
 	std::vector<MyMeshInfo*> orderedPrims;
-	BuildNode* root;
-	root = recursiveBuild(primitiveInfo, 0, primitives.size(), orderedPrims);
+	shared_ptr<BuildNode> root;
+	//root = recursiveBuild(primitiveInfo, 0, primitives.size(), orderedPrims);
+	root = HLBuild(primitiveInfo,orderedPrims);
 	primitives.swap(orderedPrims);
 	return root;
+}
+
+static inline uint32_t Left(uint32_t x) {
+	if (x == (1 << 10))--x;
+	x = (x | x << 16) & 0b00000011000000000000000011111111;
+	x = (x | x << 8) & 0b00000011000000001111000000001111;
+	x = (x | x << 4) & 0b00000011000011000011000011000011;
+	x = (x | x << 2) & 0b00001001001001001001001001001001;
+	return x;
+}
+
+static inline uint32_t EncodeMorton3(const Point3f& p) {
+	return (Left(p.X()) << 2) | (Left(p.Y()) < 1) | (Left(p.Z()));
+}
+
+
+shared_ptr<BuildNode> TreeBuilder::HLBuild(std::vector<PrimitiveInfo>& primitiveInfo, std::vector<MyMeshInfo*>& orderedPrims) {
+	Box3f bounds;
+	bounds.min.X() = bounds.min.Y() = bounds.min.Z() = INFINITY;
+	bounds.max.X() = bounds.max.Y() = bounds.max.Z() = -INFINITY;
+	for (const PrimitiveInfo& pi : primitiveInfo) {
+		bounds.Add(pi.bounds);
+	}
+
+
+	vector<MortonPrimitive> mortonPrims(primitiveInfo.size());
+
+	for (int i = 0; i < primitiveInfo.size(); i++) {
+		constexpr int mortonBits = 10;
+		constexpr int mortonScale = 1 << mortonBits;
+		mortonPrims[i].primitiveIndex = primitiveInfo[i].primitiveNumber;
+		Point3f centroidOffset = Offset(primitiveInfo[i].centroid, bounds);
+		mortonPrims[i].mortonCode = EncodeMorton3(centroidOffset*mortonScale);
+	}
+
+	RadixSort(&mortonPrims);
+
+	vector<LBVHTreeLet> treeLetsToBuild;
+
+	for (int start = 0, end = 1; end <= (int)mortonPrims.size(); ++end) {
+		uint32_t mask = 0b00111111111000000000000000000000;
+		if (end == (int)mortonPrims.size() || (mortonPrims[start].mortonCode & mask) != (mortonPrims[end].mortonCode & mask) ){
+			int nPrimitives = end - start;
+			//int maxBuildNode = 2 * nPrimitives - 1;
+			//BuildNode* nodes = (BuildNode*)malloc(maxBuildNode*sizeof(BuildNode));
+			treeLetsToBuild.push_back({ start,nPrimitives,nullptr});
+			start = end;
+		}
+	}
+
+	orderedPrims.resize(primitiveInfo.size());
+	int orderedPrimsOffset = 0;
+	for (int i = 0; i < treeLetsToBuild.size(); i++) {
+		const int firstBitIndex = 29 - 9;
+		LBVHTreeLet& tr = treeLetsToBuild[i];
+		tr.buildNodes = emitBVH(primitiveInfo, &mortonPrims[tr.startIndex], tr.nPrimitives, orderedPrims, orderedPrimsOffset, firstBitIndex);
+	}
+
+	vector<BuildNode*> finishedTreeLets;
+	for (LBVHTreeLet& treeLet : treeLetsToBuild) {
+		finishedTreeLets.push_back(treeLet.buildNodes);
+	}
+
+	return buildUpperSAH(finishedTreeLets, 0, finishedTreeLets.size());
+
 }

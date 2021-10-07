@@ -2,7 +2,7 @@
 #include "MyMesh.h"
 
 struct MergeMeshInfo {
-	vector<MyMesh*> meshes;
+	vector<shared_ptr< MyMesh>> meshes;
 	unsigned int material;
 };
 class MyMeshOptimizer
@@ -12,7 +12,7 @@ private:
 	vector<MyMeshInfo> mergeMesh;
 	tri::TriEdgeCollapseQuadricParameter* m_pParams;
 private:
-	void mergeMeshes(unsigned int material, vector<MyMesh*> meshes);
+	void mergeMeshes(unsigned int material, vector<shared_ptr< MyMesh>> meshes);
 public:
 	MyMeshOptimizer(vector<MyMeshInfo> meshes);
 	~MyMeshOptimizer() {}

@@ -2,21 +2,21 @@
 
 struct mesh_compare_fn
 {
-	inline bool operator() (const MyMesh* myMesh1, const MyMesh* myMesh2)
+	inline bool operator() (const shared_ptr<MyMesh> myMesh1, const shared_ptr<MyMesh> myMesh2)
 	{
 		return myMesh1->vn < myMesh2->vn;
 	}
 };
 
-void MyMeshOptimizer::mergeMeshes(unsigned int material, vector<MyMesh*> meshes)
+void MyMeshOptimizer::mergeMeshes(unsigned int material, vector<shared_ptr< MyMesh>> meshes)
 {
 	int totalVertex = 0;
 	int totalFace = 0;
-	std::vector<MyMesh*> meshesToMerge;
-	MyMesh* mergedMesh = new MyMesh();
+	std::vector<shared_ptr< MyMesh>> meshesToMerge;
+	shared_ptr< MyMesh> mergedMesh(new MyMesh());
 	for (int i = 0; i < meshes.size(); ++i)
 	{
-		MyMesh* myMesh = meshes[i];
+		shared_ptr<MyMesh> myMesh = meshes[i];
 		 //FIXME: Maybe not neccessary to limit the vertex number since we will do decimation later anyway.
 		if (totalVertex + myMesh->vn > 65536 || (totalVertex + myMesh->vn < 65536 && i == meshes.size() - 1))
 		{
@@ -29,7 +29,7 @@ void MyMeshOptimizer::mergeMeshes(unsigned int material, vector<MyMesh*> meshes)
 			MyMeshInfo meshInfo;
 			meshInfo.material = material;
 			meshInfo.myMesh = mergedMesh;
-			mergedMesh = new MyMesh();
+			mergedMesh = make_shared<MyMesh>();
 			mergeMesh.push_back(meshInfo);
 			totalVertex = 0;
 			totalFace = 0;
@@ -73,7 +73,7 @@ void MyMeshOptimizer::Domerge()
 		}
 		else
 		{
-			std::vector<MyMesh*> myMeshesToMerge;
+			std::vector<shared_ptr< MyMesh>> myMeshesToMerge;
 			myMeshesToMerge.push_back(meshes[i].myMesh);
 			MergeMeshInfo mergeMeshInfo;
 			mergeMeshInfo.meshes = myMeshesToMerge;
@@ -83,7 +83,7 @@ void MyMeshOptimizer::Domerge()
 	}
 
 	for (auto it = materialMeshMap.begin(); it != materialMeshMap.end(); ++it) {
-		vector<MyMesh*> myMeshes = it->second.meshes;
+		vector<shared_ptr<MyMesh>> myMeshes = it->second.meshes;
 		sort(myMeshes.begin(), myMeshes.end(), mesh_compare_fn());
 		mergeMeshes(it->second.material,myMeshes);
 	}
@@ -110,7 +110,7 @@ float MyMeshOptimizer::DoDecemation(float tileBoxMaxLength, bool remesh)
     int totalFaceBeforeSplit = 0;
     for (int i = 0; i < meshes.size(); ++i)
     {
-        MyMesh* myMesh = meshes[i].myMesh;
+		shared_ptr<MyMesh>  myMesh = meshes[i].myMesh;
 
         if (remesh)
         {

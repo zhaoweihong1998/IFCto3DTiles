@@ -26,8 +26,8 @@ class MY_API My3DTilesExporter
 {
 private:
 	Assimp::IOSystem* io;
-	vector<MyMesh*> myMeshes;
-	vector<MyMesh*> nodeMeshes;
+	vector<shared_ptr<MyMesh>> myMeshes;
+	vector<shared_ptr<MyMesh>> nodeMeshes;
 	TileInfo* rootTile;
 	const aiScene* mScene;
 	int m_currentTileLevel;
