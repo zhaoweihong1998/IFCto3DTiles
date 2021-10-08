@@ -24,15 +24,26 @@ add_library(gltfHandler SHARED ${gltfHandler_src_dirs})
 target_include_directories(gltfHandler PUBLIC ${PROJECT_SOURCE_DIR}/lib/gltfHandler ${PROJECT_SOURCE_DIR}/include ${PROJECT_SOURCE_DIR}/deps/assimp/include ${PROJECT_SOURCE_DIR}/deps/assimp/code ${PROJECT_SOURCE_DIR}/deps/assimp/contrib/rapidjson/include ${PROJECT_SOURCE_DIR}/deps/assimp/contrib )
 target_link_libraries(gltfHandler assimp)
 target_compile_definitions(gltfHandler PUBLIC RAPIDJSON_HAS_STDSTRING=1 GLTF_EXPORT)
+# set(BUILD_FLAGS "/DGLTF_EXPORT /DRAPIDJSON_HAS_STDSTRING=1" )
+# set_target_properties(gltfHandler PROPERTIES COMPILE_FLAGS ${BUILD_FLAGS})
 
 add_library(3DTiles SHARED ${3dtiles_src_dirs}) # 指定可执行文件名及源码
 target_include_directories(3DTiles PUBLIC ${PROJECT_SOURCE_DIR}/lib/3DTiles ${PROJECT_SOURCE_DIR}/lib/gltfHandler ${PROJECT_SOURCE_DIR}/include/nlohmann  ${PROJECT_SOURCE_DIR}/include ${PROJECT_SOURCE_DIR}/deps/assimp/include)
 
 target_link_libraries(3DTiles assimp gltfHandler) # 链接外部库
 target_compile_definitions(3DTiles PUBLIC TDTILE_EXPORT)
-
+# set(BUILD_FLAGS "/DTDTILE_EXPORT" )
+# set_target_properties(3DTiles PROPERTIES COMPILE_FLAGS ${BUILD_FLAGS})
 
 
 add_executable(test ${test_src_dirs})
 target_include_directories(test PUBLIC ${PROJECT_SOURCE_DIR}/lib)
 target_link_libraries(test 3DTiles)
+#target_compile_definitions(test PUBLIC openmp)
+# set(BUILD_FLAGS "/DTDTILE_EXPORT" )
+# set_target_properties(test PROPERTIES COMPILE_FLAGS ${BUILD_FLAGS})
+# if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "MSVC") 
+# add_compile_options(/Dopenmp)
+# elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")  
+# add_compile_options(-fopenmp)
+# endif()

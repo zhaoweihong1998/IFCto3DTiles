@@ -13,7 +13,7 @@ struct Option
 	bool newMethod;
 	int nThreads;
 	Option() {
-		Max_Mesh_per_Node = 500;
+		Max_Mesh_per_Node = 800;
 		Min_Mesh_Per_Node = 300;
 		Level = 0;
 		filename = "";

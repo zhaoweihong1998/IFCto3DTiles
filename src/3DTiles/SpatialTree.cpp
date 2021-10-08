@@ -1,4 +1,5 @@
 #include "SpatialTree.h"
+#include <omp.h>
 
 SpatialTree::SpatialTree(const aiScene& mScene, vector<shared_ptr<MyMesh> >& meshes, const Option& op):
 	op(op)
@@ -168,6 +169,7 @@ void SpatialTree::splitTreeNode(TileInfo* parentTile)
 	else {
 		Tree = new TreeBuilder(parentTile);
 		Tree->setMinMeshPerNode(op.Min_Mesh_Per_Node);
+		Tree->setThreadNum(op.nThreads);
 		root = Tree->getRoot();
 		buildTree(parentTile, root);
 	}
@@ -388,9 +390,10 @@ static inline uint32_t EncodeMorton3(const Point3f& p) {
 	return (Left(p.X()) << 2) | (Left(p.Y()) < 1) | (Left(p.Z()));
 }
 
-
 shared_ptr<BuildNode> TreeBuilder::HLBuild(std::vector<PrimitiveInfo>& primitiveInfo, std::vector<MyMeshInfo*>& orderedPrims) {
 	Box3f bounds;
+	omp_set_num_threads(nThreads);
+
 	bounds.min.X() = bounds.min.Y() = bounds.min.Z() = INFINITY;
 	bounds.max.X() = bounds.max.Y() = bounds.max.Z() = -INFINITY;
 	for (const PrimitiveInfo& pi : primitiveInfo) {
@@ -399,25 +402,30 @@ shared_ptr<BuildNode> TreeBuilder::HLBuild(std::vector<PrimitiveInfo>& primitive
 
 
 	vector<MortonPrimitive> mortonPrims(primitiveInfo.size());
-
+	printf("start to encode bounds\n");
+	float startTime = omp_get_wtime();
+#pragma omp parallel for shared(mortonPrims)
 	for (int i = 0; i < primitiveInfo.size(); i++) {
+		int id = omp_get_thread_num();
+		printf("i=%d, hello, i am thread %d\n", i,id);
 		constexpr int mortonBits = 10;
 		constexpr int mortonScale = 1 << mortonBits;
 		mortonPrims[i].primitiveIndex = primitiveInfo[i].primitiveNumber;
 		Point3f centroidOffset = Offset(primitiveInfo[i].centroid, bounds);
 		mortonPrims[i].mortonCode = EncodeMorton3(centroidOffset*mortonScale);
 	}
+#pragma omp barrier 
+	float endTime = omp_get_wtime();
+	printf("used time: %f\n", endTime - startTime);
 
 	RadixSort(&mortonPrims);
 
 	vector<LBVHTreeLet> treeLetsToBuild;
 
 	for (int start = 0, end = 1; end <= (int)mortonPrims.size(); ++end) {
-		uint32_t mask = 0b00111111111000000000000000000000;
+		uint32_t mask = 0b00111111000000000000000000000000;
 		if (end == (int)mortonPrims.size() || (mortonPrims[start].mortonCode & mask) != (mortonPrims[end].mortonCode & mask) ){
 			int nPrimitives = end - start;
-			//int maxBuildNode = 2 * nPrimitives - 1;
-			//BuildNode* nodes = (BuildNode*)malloc(maxBuildNode*sizeof(BuildNode));
 			treeLetsToBuild.push_back({ start,nPrimitives,nullptr});
 			start = end;
 		}
@@ -425,11 +433,21 @@ shared_ptr<BuildNode> TreeBuilder::HLBuild(std::vector<PrimitiveInfo>& primitive
 
 	orderedPrims.resize(primitiveInfo.size());
 	int orderedPrimsOffset = 0;
+	printf("start to build leaf node\n");
+	startTime = omp_get_wtime();
+#pragma omp parallel for shared(orderedPrims,orderedPrimsOffset,primitiveInfo,mortonPrims,treeLetsToBuild)
 	for (int i = 0; i < treeLetsToBuild.size(); i++) {
-		const int firstBitIndex = 29 - 9;
+		int id = omp_get_thread_num();
+		printf("i = %d, hello, I am thread %d\n", i,id);
+
+		const int firstBitIndex = 29 - 6;
 		LBVHTreeLet& tr = treeLetsToBuild[i];
 		tr.buildNodes = emitBVH(primitiveInfo, &mortonPrims[tr.startIndex], tr.nPrimitives, orderedPrims, orderedPrimsOffset, firstBitIndex);
 	}
+#pragma omp barrier 
+	endTime = omp_get_wtime();
+	printf("used time: %f\n", endTime - startTime);
+
 
 	vector<BuildNode*> finishedTreeLets;
 	for (LBVHTreeLet& treeLet : treeLetsToBuild) {
@@ -439,3 +457,178 @@ shared_ptr<BuildNode> TreeBuilder::HLBuild(std::vector<PrimitiveInfo>& primitive
 	return buildUpperSAH(finishedTreeLets, 0, finishedTreeLets.size());
 
 }
+
+BuildNode* TreeBuilder::emitBVH(const vector<PrimitiveInfo>& primitiveInfo, MortonPrimitive* mortonPrims, int nPrimitives, vector<MyMeshInfo*>& orderedPrims, int& orderedPrimOffset, int bitIndex) {
+	if (bitIndex == -1 || nPrimitives < maxPrimInNode) {
+		BuildNode* node = new BuildNode();
+		Box3f bounds;
+		bounds.min.X() = bounds.min.Y() = bounds.min.Z() = INFINITY;
+		bounds.max.X() = bounds.max.Y() = bounds.max.Z() = -INFINITY;
+		int firstPrimOffset = orderedPrimOffset;
+#pragma omp atomic
+		orderedPrimOffset += nPrimitives;
+		for (int i = 0; i < nPrimitives; i++) {
+			int primitiveIndex = mortonPrims[i].primitiveIndex;
+			orderedPrims[firstPrimOffset + i] = primitives[primitiveIndex];
+			bounds.Add(primitiveInfo[primitiveIndex].bounds);
+		}
+		node->InitLeaf(firstPrimOffset, nPrimitives, bounds);
+		return node;
+	}
+	else {
+		int mask = 1 << bitIndex;
+		if ((mortonPrims[0].mortonCode & mask) == (mortonPrims[nPrimitives - 1].mortonCode & mask))return emitBVH(primitiveInfo, mortonPrims, nPrimitives,
+			orderedPrims, orderedPrimOffset, bitIndex - 1);
+		int searchStart = 0, searchEnd = nPrimitives - 1;
+		while (searchStart + 1 != searchEnd) {
+			int mid = (searchStart + searchEnd) / 2;
+			if ((mortonPrims[searchStart].mortonCode & mask) == (mortonPrims[mid].mortonCode & mask)) {
+				searchStart = mid;
+			}
+			else {
+				searchEnd = mid;
+			}
+		}
+		int splitOffset = searchEnd;
+		BuildNode* node = new BuildNode();
+		BuildNode* lbvh[2] = {
+			emitBVH(primitiveInfo,mortonPrims,splitOffset,orderedPrims, orderedPrimOffset,bitIndex - 1),
+			emitBVH(primitiveInfo,&mortonPrims[splitOffset],nPrimitives - splitOffset,orderedPrims, orderedPrimOffset,bitIndex - 1)
+		};
+		int axis = bitIndex % 3;
+		shared_ptr<BuildNode> ptr1(lbvh[0]);
+		shared_ptr<BuildNode> ptr2(lbvh[1]);
+		node->InitInterior(axis, ptr1, ptr2);
+		return node;
+	}
+}
+
+shared_ptr<BuildNode> TreeBuilder::buildUpperSAH(vector<BuildNode*>& treeletRoot, int start, int end) {
+	int nPrimitive = end - start;
+	if (nPrimitive == 1) {
+		return shared_ptr<BuildNode>(treeletRoot[start]);
+	}
+	else {
+		shared_ptr<BuildNode> node(new BuildNode());
+		Box3f bounds;
+		bounds.min.X() = bounds.min.Y() = bounds.min.Z() = INFINITY;
+		bounds.max.X() = bounds.max.Y() = bounds.max.Z() = -INFINITY;
+		for (int i = start; i < end; ++i) {
+			bounds.Add(treeletRoot[i]->bounds);
+		}
+		Box3f centroidBounds;
+		centroidBounds.min.X() = centroidBounds.min.Y() = centroidBounds.min.Z() = INFINITY;
+		centroidBounds.max.X() = centroidBounds.max.Y() = centroidBounds.max.Z() = -INFINITY;
+		for (int i = start; i < end; i++) {
+			centroidBounds.Add(treeletRoot[i]->bounds.Center());
+		}
+		int dim = centroidBounds.MaxDim();
+		int mid = (start + end) / 2;
+		if (nPrimitive <= 4) {
+			/*int mid = (start + end) / 2;*/
+			std::nth_element(&treeletRoot[start], &treeletRoot[mid], &treeletRoot[end - 1] + 1,
+				[dim](const BuildNode* a, const BuildNode* b) {
+					return a->bounds.Center()[dim] < b->bounds.Center()[dim];
+				});
+		}
+		else
+		{
+			constexpr int nBuckets = 12;
+			struct BucketInfo
+			{
+				int count = 0;
+				Box3f bounds;
+			};
+			BucketInfo buckets[nBuckets];
+			for (int i = 0; i < 12; i++) {
+				buckets[i].bounds.min.X() = buckets[i].bounds.min.Y() = buckets[i].bounds.min.Z() = INFINITY;
+				buckets[i].bounds.max.X() = buckets[i].bounds.max.Y() = buckets[i].bounds.max.Z() = -INFINITY;
+			}
+			for (int i = start; i < end; i++) {
+				int b = nBuckets * Offset(treeletRoot[i]->bounds.Center(), centroidBounds)[dim];
+				if (b == nBuckets)b = nBuckets - 1;
+				buckets[b].count++;
+				buckets[b].bounds.Add(treeletRoot[i]->bounds);
+			}
+			float cost[nBuckets - 1];
+			for (int i = 0; i < nBuckets - 1; ++i) {
+				Box3f b0, b1;
+				b0.min.X() = b0.min.Y() = b0.min.Z() = INFINITY;
+				b0.max.X() = b0.max.Y() = b0.max.Z() = -INFINITY;
+				b1.min.X() = b1.min.Y() = b1.min.Z() = INFINITY;
+				b1.max.X() = b1.max.Y() = b1.max.Z() = -INFINITY;
+				int count0 = 0, count1 = 0;
+				for (int j = 0; j <= i; j++) {
+					b0.Add(buckets[j].bounds);
+					count0 += buckets[j].count;
+				}
+				for (int j = i + 1; j < nBuckets; j++) {
+					b1.Add(buckets[j].bounds);
+					count1 += buckets[j].count;
+				}
+				cost[i] = 0.125f + (count0 * b0.Volume() + count1 * b1.Volume()) / bounds.Volume();
+			}
+			float minCost = cost[0];
+			int minCostSplit = 0;
+			for (int i = 1; i < nBuckets - 1; i++) {
+				if (cost[i] < minCost) {
+					minCost = cost[i];
+					minCostSplit = i;
+				}
+			}
+			/*float leafCost = nPrimitive;
+			if (nPrimitive > 20 || minCost < leafCost) {*/
+			BuildNode** pmid = std::partition(&treeletRoot[start], &treeletRoot[end - 1] + 1,
+				[=](const BuildNode* pi) {
+					int b = nBuckets * Offset(pi->bounds.Center(), centroidBounds)[dim];
+					if (b == nBuckets)b = nBuckets - 1;
+					return b <= minCostSplit;
+				});
+			mid = pmid - &treeletRoot[0];
+			/*}
+			else*/
+			//{
+				/*node->InitLeaf(start, nPrimitive, bounds);
+				return node;*/
+				//}
+		}
+		node->InitInterior(dim, buildUpperSAH(treeletRoot, start, mid), buildUpperSAH(treeletRoot, mid, end));
+		return node;
+	}
+}
+
+void TreeBuilder::RadixSort(vector<MortonPrimitive>* v) {
+	vector<MortonPrimitive> tempVector(v->size());
+	constexpr int bitsPerPass = 6;
+	constexpr int nBits = 30;
+	constexpr int nPasses = nBits / bitsPerPass;
+	for (int pass = 0; pass < nPasses; ++pass) {
+		int lowBits = pass * bitsPerPass;
+		vector<MortonPrimitive>& in = (pass & 1) ? tempVector : *v;
+		vector<MortonPrimitive>& out = (pass & 1) ? *v : tempVector;
+		constexpr int nBuckets = 1 << bitsPerPass;
+		int bucketsCount[nBuckets] = { 0 };
+		constexpr int bitMask = (1 << bitsPerPass) - 1;
+		for (const MortonPrimitive& mp : in) {
+			int bucket = (mp.mortonCode >> lowBits) & bitMask;
+			++bucketsCount[bucket];
+		}
+
+		int outIndex[nBuckets];
+		outIndex[0] = 0;
+		for (int i = 1; i < nBuckets; i++) {
+			outIndex[i] = outIndex[i - 1] + bucketsCount[i - 1];
+		}
+
+		for (const MortonPrimitive& mp : in) {
+			int bucket = (mp.mortonCode >> lowBits) & bitMask;
+			out[outIndex[bucket]++] = mp;
+		}
+	}
+
+	if (nPasses & 1) {
+		std::swap(*v, tempVector);
+	}
+}
+
+
