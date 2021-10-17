@@ -42,6 +42,10 @@ public:
 	void setThreadNum(int number) {
 		nThreads = number;
 	}
+
+	void setMethod(int number) {
+		method = (SplitMethod)number;
+	}
 private:
 	Point3f Offset(const Point3f& p, const Box3f& bounds) {
 		Point3f o = p - bounds.min;
@@ -52,7 +56,7 @@ private:
 	}
 	enum class SplitMethod
 	{
-		Middle, EqualCounts, SAH
+		Middle=1, EqualCounts, SAH, HLBVH
 	};
 
 	struct PrimitiveInfo

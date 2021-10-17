@@ -34,7 +34,7 @@ void SpatialTree::Initialize()
 
 TileInfo* SpatialTree::GetTilesetInfo()
 {
-	if (!op.newMethod) {
+	if (op.Method==0) {
 		if (m_treeDepth < op.Level) {
 			for (int i = 0; i < op.Level - m_treeDepth; ++i) {
 				TileInfo* tileInfo = new TileInfo;
@@ -68,7 +68,7 @@ bool myCompareZ(MyMeshInfo& a, MyMeshInfo& b) {
 
 void SpatialTree::splitTreeNode(TileInfo* parentTile)
 {
-	if(!op.newMethod)
+	if(op.Method==0)
 	{
 		if (m_correntDepth > m_treeDepth) {
 			m_treeDepth = m_correntDepth;
@@ -170,6 +170,7 @@ void SpatialTree::splitTreeNode(TileInfo* parentTile)
 		Tree = new TreeBuilder(parentTile);
 		Tree->setMinMeshPerNode(op.Min_Mesh_Per_Node);
 		Tree->setThreadNum(op.nThreads);
+		Tree->setMethod(op.Method);
 		root = Tree->getRoot();
 		buildTree(parentTile, root);
 	}
@@ -371,8 +372,8 @@ shared_ptr<BuildNode> TreeBuilder::getRoot(){
 	}
 	std::vector<MyMeshInfo*> orderedPrims;
 	shared_ptr<BuildNode> root;
-	//root = recursiveBuild(primitiveInfo, 0, primitives.size(), orderedPrims);
-	root = HLBuild(primitiveInfo,orderedPrims);
+	if(method==TreeBuilder::SplitMethod::HLBVH)root = HLBuild(primitiveInfo, orderedPrims);
+	else root = recursiveBuild(primitiveInfo, 0, primitives.size(), orderedPrims);
 	primitives.swap(orderedPrims);
 	return root;
 }

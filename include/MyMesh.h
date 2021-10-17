@@ -94,6 +94,13 @@ public:
             ++fi;
         }
     }
+
+    static float BoxArea(Box3f box) {
+        float x = box.DimX();
+        float y = box.DimY();
+        float z = box.DimZ();
+        return 2 * x * y + 2 * x * z + 2 * y * z;
+    }
 };
 
 class MyTriEdgeCollapse : public tri::TriEdgeCollapseQuadric<MyMesh, VertexPair, MyTriEdgeCollapse, tri::QInfoStandard<MyVertex>> {

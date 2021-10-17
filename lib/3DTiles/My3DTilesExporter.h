@@ -18,10 +18,6 @@
 #endif//_MSC_VER
 
 
-
-
-
-
 class MY_API My3DTilesExporter
 {
 private:
@@ -33,7 +29,8 @@ private:
 	int m_currentTileLevel;
 	unordered_map<int,int> m_levelAccumMap;
 	nlohmann::json m_batchLegnthsJson;
-	float MaxError;
+	float MaxVolume;
+	float Distance;
 	unsigned int batch_id;
 	Assimp::Importer* importer;
 	const Option op;

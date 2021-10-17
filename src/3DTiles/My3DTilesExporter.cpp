@@ -187,7 +187,8 @@ void My3DTilesExporter::export3DTiles()
 	SpatialTree tree(*mScene, nodeMeshes,op);
 	tree.Initialize();
 	rootTile = tree.GetTilesetInfo();
-	MaxError = rootTile->boundingBox->Diag();
+	MaxVolume = rootTile->boundingBox->Volume();
+	//Distance = rootTile->boundingBox->DimX() + rootTile->boundingBox->DimY() + rootTile->boundingBox->DimZ();
 	exportTiles(rootTile);
 	export3DTilesset(rootTile);
 	
@@ -249,10 +250,9 @@ void My3DTilesExporter::export3DTilesset(TileInfo* rootTile)
 	nlohmann::json version = nlohmann::json({});
 	version["version"] = "1.0";
 	tilesetJson["asset"] = version;
-	tilesetJson["geometricError"] = std::to_string(MaxError / 16);
+	tilesetJson["geometricError"] = to_string(MaxVolume);
 	nlohmann::json root = nlohmann::json({});
 	tilesetJson["root"] = traverseExportTileSetJson(rootTile);
-
 	nlohmann::json dummyTransform = nlohmann::json::array();
 	dummyTransform.push_back(1);
 	dummyTransform.push_back(0);
@@ -263,18 +263,17 @@ void My3DTilesExporter::export3DTilesset(TileInfo* rootTile)
 	dummyTransform.push_back(1);
 	dummyTransform.push_back(0);
 	dummyTransform.push_back(0);
-	dummyTransform.push_back(-1);
-	dummyTransform.push_back(0);
-	dummyTransform.push_back(0);
-	dummyTransform.push_back(0);
-	dummyTransform.push_back(0);
-	dummyTransform.push_back(0);
 	dummyTransform.push_back(1);
+	dummyTransform.push_back(0);
+	dummyTransform.push_back(0);
+	dummyTransform.push_back(0);
+	dummyTransform.push_back(0);
+	dummyTransform.push_back(0);
+	dummyTransform.push_back(-1);
 	tilesetJson["root"]["transform"] = dummyTransform;
 	char* filepath = ".\\output\\tileset.json";
 	std::ofstream file(filepath);
 	file << tilesetJson;
-
 }
 
 void My3DTilesExporter::exportTiles(TileInfo* rootTile)
@@ -350,9 +349,17 @@ void My3DTilesExporter::exportTiles(TileInfo* rootTile)
 void My3DTilesExporter::simplifyMesh(TileInfo* tileInfo, char* bufferName)
 {
 	MyMeshOptimizer op(tileInfo->myMeshInfos);
-	float maxLength = tileInfo->boundingBox->Diag();
-	tileInfo->geometryError = op.DoDecemation(maxLength);
-	if (tileInfo->children.size() == 0)tileInfo->geometryError = 0.0;
+
+	//选用包围盒的体积作为误差度量的维度
+	float volume = tileInfo->boundingBox->Volume();
+	//tileInfo->geometryError = op.DoDecemation(maxLength);
+	//volume /= MaxVolume;
+	/*volume = volume * volume * volume;*/
+	
+	tileInfo->geometryError = volume;
+
+	//取消最底层包围盒为0
+	/*if (tileInfo->children.size() == 0)tileInfo->geometryError = 0.0;*/
 	vector<MyMeshInfo> meshes = op.GetMergeMeshInfos();
 	writeGltf(tileInfo, meshes, bufferName, mScene);
 }

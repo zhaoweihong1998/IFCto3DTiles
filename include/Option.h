@@ -10,7 +10,7 @@ struct Option
 	bool binary;
 	bool log;
 	std::string outputDir;
-	bool newMethod;
+	int Method;
 	int nThreads;
 	Option() {
 		Max_Mesh_per_Node = 800;
@@ -20,7 +20,7 @@ struct Option
 		binary = true;
 		log = false;
 		outputDir = "output";
-		newMethod = true;
+		Method = true;
 		nThreads = 1;
 	}
 };
