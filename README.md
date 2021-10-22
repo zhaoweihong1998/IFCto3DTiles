@@ -1,6 +1,8 @@
 # IfcTo3DTiles模型转换程序说明
 
-![img](file:///C:/Users/14911/AppData/Local/Temp/msohtmlclip1/01/clip_image002.png)
+
+
+![flow ](flow .png)
 
 **1.**   **程序输入**
 
