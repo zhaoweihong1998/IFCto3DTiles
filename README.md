@@ -2,7 +2,7 @@
 
 
 
-![flow ](flow .png)
+![flow ](flow .jpg)
 
 **1.**   **程序输入**
 
