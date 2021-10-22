@@ -1,8 +1,5 @@
 # IfcTo3DTiles模型转换程序说明
-
-
-
-![flow ](flow .png)
+![flow ](https://github.com/zhaoweihong1998/3DTiles/blob/dev/flow%20.png)
 
 **1.**   **程序输入**
 
