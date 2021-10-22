@@ -61,7 +61,7 @@ public:
     unsigned int maxterialIndex;
     unsigned int batchId;
     string name;
-    static void ConcatMyMesh(MyMesh* dest, MyMesh* src)
+    static void ConcatMyMesh(shared_ptr<MyMesh> dest, shared_ptr<MyMesh> src)
     {
         
         VertexIterator vi = Allocator<MyMesh>::AddVertices(*dest, src->vn);
@@ -93,6 +93,13 @@ public:
             fi->V(2) = vertexMap.at(src->face[j].V(2));
             ++fi;
         }
+    }
+
+    static float BoxArea(Box3f box) {
+        float x = box.DimX();
+        float y = box.DimY();
+        float z = box.DimZ();
+        return 2 * x * y + 2 * x * z + 2 * y * z;
     }
 };
 
@@ -147,7 +154,7 @@ public:
         this->material = meshInfo.material;
         this->myMesh = meshInfo.myMesh;
     }
-    MyMesh* myMesh;
+    shared_ptr<MyMesh>  myMesh;
     unsigned int material;
 };
 
@@ -170,4 +177,6 @@ typedef typename MyMesh::EdgeIterator EdgeIterator;
 typedef typename MyMesh::ScalarType ScalarType;
 typedef typename MyMesh::VertexType VertexType;
 typedef typename MyMesh::FaceType FaceType;
+
+
 

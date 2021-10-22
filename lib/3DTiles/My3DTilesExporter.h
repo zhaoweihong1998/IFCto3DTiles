@@ -18,22 +18,19 @@
 #endif//_MSC_VER
 
 
-
-
-
-
 class MY_API My3DTilesExporter
 {
 private:
 	Assimp::IOSystem* io;
-	vector<MyMesh*> myMeshes;
-	vector<MyMesh*> nodeMeshes;
+	vector<shared_ptr<MyMesh>> myMeshes;
+	vector<shared_ptr<MyMesh>> nodeMeshes;
 	TileInfo* rootTile;
 	const aiScene* mScene;
 	int m_currentTileLevel;
 	unordered_map<int,int> m_levelAccumMap;
 	nlohmann::json m_batchLegnthsJson;
-	float MaxError;
+	float MaxVolume;
+	float Distance;
 	unsigned int batch_id;
 	Assimp::Importer* importer;
 	const Option op;

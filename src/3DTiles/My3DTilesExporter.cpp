@@ -9,7 +9,7 @@ My3DTilesExporter::My3DTilesExporter(const Option& op):
 {
 	importer = new Assimp::Importer();
 	io = new Assimp::DefaultIOSystem();
-	this->mScene = importer->ReadFile(this->op.filename, aiProcess_Triangulate);
+	this->mScene = importer->ReadFile(this->op.Filename, aiProcess_Triangulate);
 	rootTile = nullptr;
 	myMeshes.clear();
 	m_currentTileLevel = 0;
@@ -25,7 +25,7 @@ void My3DTilesExporter::createMyMesh()
 {
 	for (int i = 0; i < mScene->mNumMeshes; ++i) {
 
-		MyMesh* mesh = new MyMesh();
+		shared_ptr<MyMesh> mesh(new MyMesh());
 		myMeshes.push_back(mesh);
 		aiMesh* m_mesh = mScene->mMeshes[i];
 		mesh->maxterialIndex = m_mesh->mMaterialIndex;
@@ -123,14 +123,11 @@ void My3DTilesExporter::createNodeBox()
 				MyMesh* mergeNode = new MyMesh();
 				
 				for (int k = 0; k < meshInfos[j].mNumMeshes; ++k) {
-					MyMesh* mesh_ = myMeshes[meshInfos[j].meshIndex[k]];
-					MyMesh* mesh = new MyMesh();
+					shared_ptr<MyMesh> mesh_ = myMeshes[meshInfos[j].meshIndex[k]];
+					shared_ptr<MyMesh> mesh(new MyMesh());
 					MyMesh::ConcatMyMesh(mesh, mesh_);
 					vector<MyVertex>::iterator it;
 					for (it = mesh->vert.begin(); it != mesh->vert.end(); ++it) {
-
-						
-
 						tempPt[0] = it->P()[0];
 						tempPt[1] = it->P()[1];
 						tempPt[2] = it->P()[2];
@@ -147,32 +144,26 @@ void My3DTilesExporter::createNodeBox()
 					}
 					mesh->name = name;
 					mesh->batchId = batchId;
-
 					
 					tri::UpdateBounding<MyMesh>::Box(*mesh);
 					nodeMeshes.push_back(mesh);
-					
 				}
-				
-
 			}
 			else {
 				
 				for (int k = 0; k < meshInfos[i].mNumMeshes; ++k) {
-					MyMesh* mesh_ = myMeshes[meshInfos[i].meshIndex[k]];
-					MyMesh* mesh = new MyMesh();
+					shared_ptr<MyMesh> mesh_ = myMeshes[meshInfos[i].meshIndex[k]];
+					shared_ptr<MyMesh> mesh(new MyMesh());
 					MyMesh::ConcatMyMesh(mesh, mesh_);
 					vector<MyVertex>::iterator it;
-
-					
 					tri::UpdateBounding<MyMesh>::Box(*mesh);
 					nodeMeshes.push_back(mesh);
-					
 				}
 				
 			}
 		}
 	}
+	myMeshes.clear();
 }
 
 void My3DTilesExporter::export3DTiles()
@@ -186,10 +177,10 @@ void My3DTilesExporter::export3DTiles()
 	SpatialTree tree(*mScene, nodeMeshes,op);
 	tree.Initialize();
 	rootTile = tree.GetTilesetInfo();
-	MaxError = rootTile->boundingBox->Diag();
+	MaxVolume = rootTile->boundingBox->Volume();
+	//Distance = rootTile->boundingBox->DimX() + rootTile->boundingBox->DimY() + rootTile->boundingBox->DimZ();
 	exportTiles(rootTile);
 	export3DTilesset(rootTile);
-	
 }
 nlohmann::json My3DTilesExporter::traverseExportTileSetJson(TileInfo* tileInfo)
 {
@@ -199,12 +190,12 @@ nlohmann::json My3DTilesExporter::traverseExportTileSetJson(TileInfo* tileInfo)
 	nlohmann::json boundingSphere = nlohmann::json::array();
 	nlohmann::json boundingBox = nlohmann::json::array();
 	boundingSphere.push_back(center.X());
-	boundingSphere.push_back(center.Z());
 	boundingSphere.push_back(center.Y());
+	boundingSphere.push_back(center.Z());
 	boundingSphere.push_back(radius);
 	boundingBox.push_back(center.X());
-	boundingBox.push_back(center.Z());
 	boundingBox.push_back(center.Y());
+	boundingBox.push_back(center.Z());
 	Point3f dim = tileInfo->boundingBox->Dim();
 	float x = dim.X() / 2;
 	float y = dim.Y() / 2;
@@ -213,11 +204,11 @@ nlohmann::json My3DTilesExporter::traverseExportTileSetJson(TileInfo* tileInfo)
 	boundingBox.push_back(0);
 	boundingBox.push_back(0);
 	boundingBox.push_back(0);
-	boundingBox.push_back(z);
-	boundingBox.push_back(0);
-	boundingBox.push_back(0);
-	boundingBox.push_back(0);
 	boundingBox.push_back(y);
+	boundingBox.push_back(0);
+	boundingBox.push_back(0);
+	boundingBox.push_back(0);
+	boundingBox.push_back(z);
 	parent["boundingVolume"] = nlohmann::json({});
 	parent["boundingVolume"]["sphere"] = boundingSphere;
 	parent["boundingVolume"]["box"] = boundingBox;
@@ -248,10 +239,9 @@ void My3DTilesExporter::export3DTilesset(TileInfo* rootTile)
 	nlohmann::json version = nlohmann::json({});
 	version["version"] = "1.0";
 	tilesetJson["asset"] = version;
-	tilesetJson["geometricError"] = std::to_string(MaxError / 16);
+	tilesetJson["geometricError"] = to_string(MaxVolume);
 	nlohmann::json root = nlohmann::json({});
 	tilesetJson["root"] = traverseExportTileSetJson(rootTile);
-
 	nlohmann::json dummyTransform = nlohmann::json::array();
 	dummyTransform.push_back(1);
 	dummyTransform.push_back(0);
@@ -262,18 +252,17 @@ void My3DTilesExporter::export3DTilesset(TileInfo* rootTile)
 	dummyTransform.push_back(1);
 	dummyTransform.push_back(0);
 	dummyTransform.push_back(0);
-	dummyTransform.push_back(-1);
-	dummyTransform.push_back(0);
-	dummyTransform.push_back(0);
-	dummyTransform.push_back(0);
-	dummyTransform.push_back(0);
-	dummyTransform.push_back(0);
 	dummyTransform.push_back(1);
+	dummyTransform.push_back(0);
+	dummyTransform.push_back(0);
+	dummyTransform.push_back(0);
+	dummyTransform.push_back(0);
+	dummyTransform.push_back(0);
+	dummyTransform.push_back(-1);
 	tilesetJson["root"]["transform"] = dummyTransform;
 	char* filepath = ".\\output\\tileset.json";
 	std::ofstream file(filepath);
 	file << tilesetJson;
-
 }
 
 void My3DTilesExporter::exportTiles(TileInfo* rootTile)
@@ -304,8 +293,8 @@ void My3DTilesExporter::exportTiles(TileInfo* rootTile)
 	}
 	rootTile->originalVertexCount = vn_count;
 
-	if (op.log) {
-		std::cout << "[before siftting]" << buffername << "  size of meshes:" << rootTile->myMeshInfos.size() <<"   " << "numver of vertices:" << rootTile->originalVertexCount<< std::endl;
+	if (op.Log) {
+		std::cout << "[before siftting]\t" <<"Level-Node:" <<buffername<< "\tsize of meshes:" << rootTile->myMeshInfos.size() <<"\tnumver of vertices:" << rootTile->originalVertexCount<< std::endl;
 	}
 	vector<MyMeshInfo> temp;
 	if (rootTile->level != 1) {
@@ -327,13 +316,13 @@ void My3DTilesExporter::exportTiles(TileInfo* rootTile)
 			}
 		}
 	}
-	if (op.log) {
+	if (op.Log) {
 		vn_count = 0;
 		for (int i = 0; i < rootTile->myMeshInfos.size(); ++i) {
 			vn_count += rootTile->myMeshInfos[i].myMesh->vn;
 		}
 		rootTile->originalVertexCount = vn_count;
-		std::cout << "[after siftting]" << buffername << "  size of meshes:" << rootTile->myMeshInfos.size() << "   " << "numver of vertices:" << rootTile->originalVertexCount << std::endl;
+		std::cout << "[after siftting]\t" <<"Level-Node:" << buffername << "\tsize of meshes:" << rootTile->myMeshInfos.size() << "\tnumber of vertices:" << rootTile->originalVertexCount << std::endl;
 	}
 	simplifyMesh(rootTile, buffername);
 	if (rootTile->level != 1) {
@@ -349,16 +338,24 @@ void My3DTilesExporter::exportTiles(TileInfo* rootTile)
 void My3DTilesExporter::simplifyMesh(TileInfo* tileInfo, char* bufferName)
 {
 	MyMeshOptimizer op(tileInfo->myMeshInfos);
-	float maxLength = tileInfo->boundingBox->Diag();
-	tileInfo->geometryError = op.DoDecemation(maxLength);
-	if (tileInfo->children.size() == 0)tileInfo->geometryError = 0.0;
+
+	//选用包围盒的体积作为误差度量的维度
+	float volume = tileInfo->boundingBox->Volume();
+	//tileInfo->geometryError = op.DoDecemation(maxLength);
+	//volume /= MaxVolume;
+	/*volume = volume * volume * volume;*/
+	
+	tileInfo->geometryError = volume;
+
+	//取消最底层包围盒为0
+	/*if (tileInfo->children.size() == 0)tileInfo->geometryError = 0.0;*/
 	vector<MyMeshInfo> meshes = op.GetMergeMeshInfos();
 	writeGltf(tileInfo, meshes, bufferName, mScene);
 }
 
 void My3DTilesExporter::writeGltf(TileInfo* tileInfo, std::vector<MyMeshInfo> meshes, char* bufferName,const aiScene* mScene)
 {
-	 MyGltfExporter exporter(meshes, bufferName, mScene, op.binary,this->io);
+	 MyGltfExporter exporter(meshes, bufferName, mScene, op.Binary,this->io);
 	 exporter.constructAsset();
 	 exporter.write();
 }

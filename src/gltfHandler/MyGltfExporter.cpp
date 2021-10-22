@@ -146,7 +146,7 @@ void MyGltfExporter::exportMeshes()
         
         Ref<Accessor> v = ExportData(*mAsset, meshId, b, mesh.myMesh->vn, pos, AttribType::VEC3, AttribType::VEC3, ComponentType_FLOAT);
         //Ref<Accessor> batch = ExportData(*mAsset, meshId, b, mesh.myMesh->vn, bacthID, AttribType::SCALAR, AttribType::SCALAR, ComponentType_UNSIGNED_INT);
-        if (mesh.myMesh[0].vert[0].normalExist) {
+        if (mesh.myMesh.get()[0].vert[0].normalExist) {
             Ref<Accessor> n = ExportData(*mAsset, meshId, b, mesh.myMesh->vn, nor, AttribType::VEC3, AttribType::VEC3, ComponentType_FLOAT);
             if (n) p.attributes.normal.push_back(n);
         }
