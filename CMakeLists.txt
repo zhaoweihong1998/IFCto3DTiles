@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.20)
 project(3DTiles VERSION 2.0.0)
 
 include_directories(${PROJECT_SOURCE_DIR}/include/vcglib ${PROJECT_SOURCE_DIR}/include/vcglib/eigenlib  ${PROJECT_SOURCE_DIR}/include)
@@ -9,7 +9,7 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/bin)
 # 指定源码目录
 aux_source_directory(${PROJECT_SOURCE_DIR}/src/3DTiles 3dtiles_src_dirs) 
-aux_source_directory(${PROJECT_SOURCE_DIR}/src/Test test_src_dirs) 
+aux_source_directory(${PROJECT_SOURCE_DIR}/src/Application app_src_dirs) 
 aux_source_directory(${PROJECT_SOURCE_DIR}/src/gltfHandler gltfHandler_src_dirs) 
 
 add_subdirectory(deps/assimp) # 指定 编译子目录
@@ -36,9 +36,9 @@ target_compile_definitions(3DTiles PUBLIC TDTILE_EXPORT)
 # set_target_properties(3DTiles PROPERTIES COMPILE_FLAGS ${BUILD_FLAGS})
 
 
-add_executable(test ${test_src_dirs})
-target_include_directories(test PUBLIC ${PROJECT_SOURCE_DIR}/lib)
-target_link_libraries(test 3DTiles)
+add_executable(IfcTo3DTiles ${app_src_dirs})
+target_include_directories(IfcTo3DTiles PUBLIC ${PROJECT_SOURCE_DIR}/lib)
+target_link_libraries(IfcTo3DTiles 3DTiles)
 #target_compile_definitions(test PUBLIC openmp)
 # set(BUILD_FLAGS "/DTDTILE_EXPORT" )
 # set_target_properties(test PROPERTIES COMPILE_FLAGS ${BUILD_FLAGS})

@@ -7,10 +7,12 @@ SpatialTree::SpatialTree(const aiScene& mScene, vector<shared_ptr<MyMesh> >& mes
 	this->mScene = &mScene;
 	this->m_meshes = &meshes;
 	this->m_pTileRoot = new TileInfo();
+	this->BigMeshes = new TileInfo();
 	this->m_correntDepth = 0;
 	this->m_treeDepth = 0;
 	root = nullptr;
 	Tree = nullptr;
+	kdTree = nullptr;
 }
 
 void SpatialTree::Initialize()
@@ -18,18 +20,55 @@ void SpatialTree::Initialize()
 	Box3f* sceneBox = new Box3f();
 	sceneBox->min.X() = sceneBox->min.Y() = sceneBox->min.Z() = INFINITY;
 	sceneBox->max.X() = sceneBox->max.Y() = sceneBox->max.Z() = -INFINITY;
+	m_pTileRoot->boundingBox = new Box3f();
+	//add 20211020
+	m_pTileRoot->boundingBox->min.X() = m_pTileRoot->boundingBox->min.Y() = m_pTileRoot->boundingBox->min.Z() = INFINITY;
+	m_pTileRoot->boundingBox->max.X() = m_pTileRoot->boundingBox->max.Y() = m_pTileRoot->boundingBox->max.Z() = -INFINITY;
+	//BigMeshes->boundingBox->min.X() = BigMeshes->boundingBox->min.Y() = BigMeshes->boundingBox->min.Z() = INFINITY;
+	//BigMeshes->boundingBox->max.X() = BigMeshes->boundingBox->max.Y() = BigMeshes->boundingBox->max.Z() = -INFINITY;
+	BigMeshes->originalVertexCount = 0;
+	//end
 	m_pTileRoot->originalVertexCount = 0;
 	for (int i = 0; i < m_meshes->size(); i++) {
 		sceneBox->Add((*m_meshes)[i]->bbox);
-		MyMeshInfo meshInfo;
+		/*MyMeshInfo meshInfo;
 		meshInfo.myMesh = (*m_meshes)[i];
 		meshInfo.material = (*m_meshes)[i]->maxterialIndex;
 		m_pTileRoot->myMeshInfos.push_back(meshInfo);
-		m_pTileRoot->originalVertexCount += meshInfo.myMesh->vn;
+		m_pTileRoot->originalVertexCount += meshInfo.myMesh->vn;*/
 	}
-	m_pTileRoot->boundingBox = sceneBox;
-	m_pTileRoot->parent = nullptr;
-	if(m_pTileRoot->myMeshInfos.size()>op.Max_Mesh_per_Node)splitTreeNode(m_pTileRoot);
+	for (int i = 0; i < m_meshes->size(); i++) 
+	{
+		int maxDim = (*m_meshes)[i]->bbox.MaxDim();
+		if ((*m_meshes)[i]->bbox.Dim()[maxDim] > 0.4 * (sceneBox->Dim()[maxDim])&&op.detach){
+			MyMeshInfo meshInfo;
+			//BigMeshes->boundingBox->Add((*m_meshes)[i]->bbox);
+			meshInfo.myMesh = (*m_meshes)[i];
+			meshInfo.material = (*m_meshes)[i]->maxterialIndex;
+			BigMeshes->myMeshInfos.push_back(meshInfo);
+			BigMeshes->originalVertexCount += meshInfo.myMesh->vn;
+		}
+		else {
+			MyMeshInfo meshInfo;
+			m_pTileRoot->boundingBox->Add((*m_meshes)[i]->bbox);
+			meshInfo.myMesh = (*m_meshes)[i];
+			meshInfo.material = (*m_meshes)[i]->maxterialIndex;
+			m_pTileRoot->myMeshInfos.push_back(meshInfo);
+			m_pTileRoot->originalVertexCount += meshInfo.myMesh->vn;
+		}
+	}
+	if (BigMeshes->myMeshInfos.size() != 0)
+	{
+		m_pTileRoot->parent = BigMeshes;
+		BigMeshes->children.push_back(m_pTileRoot);
+		BigMeshes->boundingBox = sceneBox;
+		BigMeshes->parent = nullptr;
+	}
+	else 
+		m_pTileRoot->parent = nullptr;
+	//m_pTileRoot->boundingBox = sceneBox;
+	//m_pTileRoot->parent = nullptr;
+	if(m_pTileRoot->myMeshInfos.size()>op.MaxMeshPerNode)splitTreeNode(m_pTileRoot);
 }
 
 TileInfo* SpatialTree::GetTilesetInfo()
@@ -46,11 +85,13 @@ TileInfo* SpatialTree::GetTilesetInfo()
 			m_treeDepth = op.Level;
 		}
 		recomputeTileBox(m_pTileRoot);
-		return m_pTileRoot;
+		if (m_pTileRoot->parent != nullptr)return m_pTileRoot->parent;
+		else return m_pTileRoot;
 	}
 	else {
 		recomputeTileBox(m_pTileRoot);
-		return m_pTileRoot;
+		if (m_pTileRoot->parent != nullptr)return m_pTileRoot->parent;
+		else return m_pTileRoot;
 	}
 }
 
@@ -77,9 +118,9 @@ void SpatialTree::splitTreeNode(TileInfo* parentTile)
 		Point3f dim = parentTile->boundingBox->Dim();
 		int i;
 		int totalVertexCount = parentTile->originalVertexCount;
-		if (op.log)std::cout << m_correntDepth << ":" << totalVertexCount << std::endl;
+		if (op.Log)std::cout << m_correntDepth << ":" << totalVertexCount << std::endl;
 
-		if (parentTile->myMeshInfos.size() < op.Min_Mesh_Per_Node || m_correntDepth > op.Level) {
+		if (parentTile->myMeshInfos.size() < op.MaxMeshPerNode || m_correntDepth > op.Level) {
 			m_correntDepth--;
 			return;
 		}
@@ -166,9 +207,16 @@ void SpatialTree::splitTreeNode(TileInfo* parentTile)
 		}
 		m_correntDepth--;
 	}
+	else if (op.Method == 5) {
+		kdTree = new kdTreeAccel(parentTile);
+		kdTree->BuildTree();
+		kdTree->setMaxMesh(op.MaxMeshPerNode);
+		kdTree->setMaxDepth(op.Level);
+		buildTree(parentTile, 0);
+	}
 	else {
 		Tree = new TreeBuilder(parentTile);
-		Tree->setMinMeshPerNode(op.Min_Mesh_Per_Node);
+		Tree->setMinMeshPerNode(op.MaxMeshPerNode);
 		Tree->setThreadNum(op.nThreads);
 		Tree->setMethod(op.Method);
 		root = Tree->getRoot();
@@ -211,11 +259,44 @@ void SpatialTree::buildTree(TileInfo* parent, shared_ptr<BuildNode> node) {
 	m_correntDepth--;
 }
 
+void SpatialTree::buildTree(TileInfo* parent, int index) {
+	if (m_correntDepth > m_treeDepth) {
+		m_treeDepth = m_correntDepth;
+	}
+	m_correntDepth++;
+	kdAccelNode* node = kdTree->getNode(index);
+	if (node->IsLeaf()) {
+		int nPrimitives = node->nPrimitives();
+		if (nPrimitives == 1) {
+			parent->myMeshInfos.push_back(m_pTileRoot->myMeshInfos[node->onePrimitive]);
+		}
+		else {
+			for (int i = 0; i < nPrimitives; i++) {
+				int index_ = kdTree->getIndex(node->primitiveindicesOffset + i);
+				parent->myMeshInfos.push_back(m_pTileRoot->myMeshInfos[index_]);
+			}
+		}
+	}
+	else {
+		TileInfo* pLeft = new TileInfo;
+		TileInfo* pRight = new TileInfo;
+		pLeft->boundingBox = new Box3f(*(parent->boundingBox));
+		pRight->boundingBox = new Box3f(*(parent->boundingBox));
+		pLeft->boundingBox->max[node->SplitAxis()] = pRight->boundingBox->min[node->SplitAxis()] = node->SplitPos();
+		buildTree(pLeft, index + 1);
+		buildTree(pRight, node->AboveChild());
+		parent->children.push_back(pLeft);
+		parent->children.push_back(pRight);
+	}
+	m_correntDepth--;
+}
+
 TreeBuilder::TreeBuilder(TileInfo* rootTile)
 {
 	for (int i = 0; i < rootTile->myMeshInfos.size(); i++) {
 		primitives.push_back(&rootTile->myMeshInfos[i]);
 	}
+	nThreads = 4;
 	maxPrimInNode = 500;
 	method = TreeBuilder::SplitMethod::SAH;
 }
@@ -234,7 +315,7 @@ shared_ptr<BuildNode> TreeBuilder::recursiveBuild(std::vector<PrimitiveInfo>& pr
 
 	int nPrimitive = end - start;
 
-	if (nPrimitive == 1) {
+	if (nPrimitive <= maxPrimInNode) {
 		int firstOffset = orderedPrims.size();
 		for (int i = start; i < end; i++) {
 			int primNum = primitiveInfo[i].primitiveNumber;
@@ -265,7 +346,7 @@ shared_ptr<BuildNode> TreeBuilder::recursiveBuild(std::vector<PrimitiveInfo>& pr
 			switch (method)
 			{
 			case SplitMethod::Middle: {
-				float pmid = (centroidBounds.min[dim], centroidBounds.max[dim]) / 2;
+				float pmid = (centroidBounds.min[dim]+centroidBounds.max[dim]) / 2;
 				PrimitiveInfo* midPtr = std::partition(&primitiveInfo[start], &primitiveInfo[end - 1] + 1,
 					[dim, pmid](const PrimitiveInfo& pi) {
 						return pi.centroid[dim] < pmid;
@@ -400,11 +481,10 @@ shared_ptr<BuildNode> TreeBuilder::HLBuild(std::vector<PrimitiveInfo>& primitive
 	for (const PrimitiveInfo& pi : primitiveInfo) {
 		bounds.Add(pi.bounds);
 	}
-
-
 	vector<MortonPrimitive> mortonPrims(primitiveInfo.size());
 	printf("start to encode bounds\n");
 	float startTime = omp_get_wtime();
+
 #pragma omp parallel for shared(mortonPrims)
 	for (int i = 0; i < primitiveInfo.size(); i++) {
 		int id = omp_get_thread_num();
@@ -577,8 +657,6 @@ shared_ptr<BuildNode> TreeBuilder::buildUpperSAH(vector<BuildNode*>& treeletRoot
 					minCostSplit = i;
 				}
 			}
-			/*float leafCost = nPrimitive;
-			if (nPrimitive > 20 || minCost < leafCost) {*/
 			BuildNode** pmid = std::partition(&treeletRoot[start], &treeletRoot[end - 1] + 1,
 				[=](const BuildNode* pi) {
 					int b = nBuckets * Offset(pi->bounds.Center(), centroidBounds)[dim];
@@ -586,12 +664,6 @@ shared_ptr<BuildNode> TreeBuilder::buildUpperSAH(vector<BuildNode*>& treeletRoot
 					return b <= minCostSplit;
 				});
 			mid = pmid - &treeletRoot[0];
-			/*}
-			else*/
-			//{
-				/*node->InitLeaf(start, nPrimitive, bounds);
-				return node;*/
-				//}
 		}
 		node->InitInterior(dim, buildUpperSAH(treeletRoot, start, mid), buildUpperSAH(treeletRoot, mid, end));
 		return node;
@@ -630,6 +702,124 @@ void TreeBuilder::RadixSort(vector<MortonPrimitive>* v) {
 	if (nPasses & 1) {
 		std::swap(*v, tempVector);
 	}
+}
+
+void kdTreeAccel::BuildTree()
+{
+	std::vector<Box3f> primBounds;
+	for (const MyMeshInfo* prim : primitives) {
+		Box3f b = prim->myMesh->bbox;
+		bounds.Add(b);
+		primBounds.push_back(b);
+	}
+
+	std::unique_ptr<int[]> primNums(new int[primitives.size()]);
+	for (int i = 0; i < primitives.size(); i++) {
+		primNums[i] = i;
+	}
+
+	std::unique_ptr<BoundEdge[]> edges[3];
+	for (int i = 0; i < 3; i++) {
+		edges[i].reset(new BoundEdge[2 * primitives.size()]);
+	}
+	std::unique_ptr<int[]> prims0(new int[primitives.size()]);
+	std::unique_ptr<int[]> prims1(new int[(maxDepth + 1) * primitives.size()]);
+	buildTree(0, bounds, primBounds, primNums.get(), primitives.size(), maxDepth, edges, prims0.get(), prims1.get(),0);
+}
+
+void kdTreeAccel::buildTree(int nodeNum, const Box3f nodeBounds, const std::vector<Box3f>& allPrimimBounds,
+	int* primNums, int nPrimitives, int depth,
+	const std::unique_ptr<BoundEdge[]> edges[3], int* prims0, int* prims1, int badRefines) {
+	if (nextFreeNode == nAllocedNodes) {
+		int nNewAllocaNodes = std::max(2 * nAllocedNodes, 512);
+		kdAccelNode* n = (kdAccelNode*)malloc(nNewAllocaNodes * sizeof(kdAccelNode));
+		if (nAllocedNodes > 0) {
+			memcpy(n, nodes, nAllocedNodes * sizeof(kdAccelNode));
+		}
+		nodes = n;
+		nAllocedNodes = nNewAllocaNodes;
+	}
+	++nextFreeNode;
+
+	if (nPrimitives <= maxPrims || depth == 0) {
+		nodes[nodeNum].InitialLeaf(primNums, nPrimitives, &primitivesIndices);
+		return;
+	}
+	int bestAxis = -1, bestOffset = -1;
+	float bestCost = INFINITY;
+	float oldCost = isectCost * float(nPrimitives);
+	float totalSA = nodeBounds.Volume();
+	float invTotalSA = 1 / totalSA;
+	Point3f d = nodeBounds.max - nodeBounds.min;
+	int axis = nodeBounds.MaxDim();
+	int retries = 0;
+retrySplit:
+	for (int i = 0; i < nPrimitives; ++i) {
+		int pn = primNums[i];
+		const Box3f& bounds = allPrimimBounds[pn];
+		edges[axis][2 * i] = BoundEdge(bounds.min[axis], pn, true);
+		edges[axis][2 * i + 1] = BoundEdge(bounds.max[axis], pn, false);
+	}
+	sort(&edges[axis][0], &edges[axis][2 * nPrimitives],
+		[](const BoundEdge& e0, const BoundEdge& e1)->bool {
+			if (e0.t == e1.t) {
+				return (int)e0.type < (int)e1.type;
+			}
+			else return e0.t < e1.t;
+		}
+	);
+	int nBelow = 0, nAbove = nPrimitives;
+	for (int i = 0; i < 2 * nPrimitives; ++i) {
+		if (edges[axis][i].type == EdgeType::End)--nAbove;
+		float edgeT = edges[axis][i].t;
+		if (edgeT > nodeBounds.min[axis] && edgeT < nodeBounds.max[axis]) {
+			int otherAxis0 = (axis + 1) % 3, otherAxis1 = (axis + 2) % 3;
+			float beblowSA = d[otherAxis0] * d[otherAxis1] * (edgeT - nodeBounds.min[axis]);
+			float aboveSA = d[otherAxis0] * d[otherAxis1] * (nodeBounds.max[axis] - edgeT);
+			float pBelow = beblowSA * invTotalSA;
+			float pAbove = aboveSA * invTotalSA;
+			float eb = (nAbove == 0 || nBelow == 0) ? emptyBonus : 0;
+			float cost = traversalCost + isectCost * (1 - eb) * (pBelow * nBelow + pAbove * nAbove);
+			if (cost < bestCost) {
+				bestCost = cost;
+				bestAxis = axis;
+				bestOffset = i;
+			}
+		}
+		if (edges[axis][i].type == EdgeType::Start)++nBelow;
+	}
+
+	if (bestAxis == -1 && retries < 2) {
+		++retries;
+		axis = (axis + 1) % 3;
+		goto retrySplit;
+	}
+	if (bestCost > oldCost)++badRefines;
+	if ((bestCost > 4 * oldCost && nPrimitives < 16) || bestAxis == -1 || badRefines == 3) {
+		nodes[nodeNum].InitialLeaf(primNums, nPrimitives, &primitivesIndices);
+		return;
+	}
+	int n0 = 0, n1 = 0;
+	for (int i = 0; i < bestOffset; ++i) {
+		if (edges[bestAxis][i].type == EdgeType::Start) {
+			prims0[n0++] = edges[bestAxis][i].primNum;
+		}
+	}
+	for (int i = bestOffset + 1; i < 2 * nPrimitives; i++) {
+		if (edges[bestAxis][i].type == EdgeType::End) {
+			prims1[n1++] = edges[bestAxis][i].primNum;
+		}
+	}
+
+	float tSplit = edges[bestAxis][bestOffset].t;
+	Box3f bounds0 = nodeBounds, bounds1 = nodeBounds;
+	bounds0.max[bestAxis] = bounds1.min[bestAxis] = tSplit;
+	buildTree(nodeNum + 1, bounds0, allPrimimBounds, prims0, n0,
+		depth - 1, edges, prims0, prims1 + nPrimitives, badRefines);
+	int aboveChild = nextFreeNode;
+	nodes[nodeNum].InitiInteror(bestAxis, aboveChild, tSplit);
+	buildTree(aboveChild, bounds1, allPrimimBounds, prims1, n1,
+		depth - 1, edges, prims0, prims1 + nPrimitives, badRefines);
 }
 
 

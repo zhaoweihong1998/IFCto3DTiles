@@ -9,7 +9,7 @@ My3DTilesExporter::My3DTilesExporter(const Option& op):
 {
 	importer = new Assimp::Importer();
 	io = new Assimp::DefaultIOSystem();
-	this->mScene = importer->ReadFile(this->op.filename, aiProcess_Triangulate);
+	this->mScene = importer->ReadFile(this->op.Filename, aiProcess_Triangulate);
 	rootTile = nullptr;
 	myMeshes.clear();
 	m_currentTileLevel = 0;
@@ -128,9 +128,6 @@ void My3DTilesExporter::createNodeBox()
 					MyMesh::ConcatMyMesh(mesh, mesh_);
 					vector<MyVertex>::iterator it;
 					for (it = mesh->vert.begin(); it != mesh->vert.end(); ++it) {
-
-						
-
 						tempPt[0] = it->P()[0];
 						tempPt[1] = it->P()[1];
 						tempPt[2] = it->P()[2];
@@ -147,14 +144,10 @@ void My3DTilesExporter::createNodeBox()
 					}
 					mesh->name = name;
 					mesh->batchId = batchId;
-
 					
 					tri::UpdateBounding<MyMesh>::Box(*mesh);
 					nodeMeshes.push_back(mesh);
-					
 				}
-				
-
 			}
 			else {
 				
@@ -163,11 +156,8 @@ void My3DTilesExporter::createNodeBox()
 					shared_ptr<MyMesh> mesh(new MyMesh());
 					MyMesh::ConcatMyMesh(mesh, mesh_);
 					vector<MyVertex>::iterator it;
-
-					
 					tri::UpdateBounding<MyMesh>::Box(*mesh);
 					nodeMeshes.push_back(mesh);
-					
 				}
 				
 			}
@@ -191,7 +181,6 @@ void My3DTilesExporter::export3DTiles()
 	//Distance = rootTile->boundingBox->DimX() + rootTile->boundingBox->DimY() + rootTile->boundingBox->DimZ();
 	exportTiles(rootTile);
 	export3DTilesset(rootTile);
-	
 }
 nlohmann::json My3DTilesExporter::traverseExportTileSetJson(TileInfo* tileInfo)
 {
@@ -304,7 +293,7 @@ void My3DTilesExporter::exportTiles(TileInfo* rootTile)
 	}
 	rootTile->originalVertexCount = vn_count;
 
-	if (op.log) {
+	if (op.Log) {
 		std::cout << "[before siftting]\t" <<"Level-Node:" <<buffername<< "\tsize of meshes:" << rootTile->myMeshInfos.size() <<"\tnumver of vertices:" << rootTile->originalVertexCount<< std::endl;
 	}
 	vector<MyMeshInfo> temp;
@@ -327,7 +316,7 @@ void My3DTilesExporter::exportTiles(TileInfo* rootTile)
 			}
 		}
 	}
-	if (op.log) {
+	if (op.Log) {
 		vn_count = 0;
 		for (int i = 0; i < rootTile->myMeshInfos.size(); ++i) {
 			vn_count += rootTile->myMeshInfos[i].myMesh->vn;
@@ -366,7 +355,7 @@ void My3DTilesExporter::simplifyMesh(TileInfo* tileInfo, char* bufferName)
 
 void My3DTilesExporter::writeGltf(TileInfo* tileInfo, std::vector<MyMeshInfo> meshes, char* bufferName,const aiScene* mScene)
 {
-	 MyGltfExporter exporter(meshes, bufferName, mScene, op.binary,this->io);
+	 MyGltfExporter exporter(meshes, bufferName, mScene, op.Binary,this->io);
 	 exporter.constructAsset();
 	 exporter.write();
 }

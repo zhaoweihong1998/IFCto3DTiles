@@ -3,24 +3,24 @@
 
 struct Option
 {
-	int Max_Mesh_per_Node;
-	int Min_Mesh_Per_Node;
+	int MaxMeshPerNode;
 	int Level;
-	std::string filename;
-	bool binary;
-	bool log;
-	std::string outputDir;
+	std::string Filename;
+	bool Binary;
+	bool Log;
+	std::string OutputDir;
 	int Method;
 	int nThreads;
+	bool detach;
 	Option() {
-		Max_Mesh_per_Node = 800;
-		Min_Mesh_Per_Node = 300;
-		Level = 0;
-		filename = "";
-		binary = true;
-		log = false;
-		outputDir = "output";
-		Method = true;
-		nThreads = 1;
+		MaxMeshPerNode = 800;
+		Level = 5;
+		Filename = "";
+		Binary = true;
+		Log = true;
+		OutputDir = "output";
+		Method = 3;
+		nThreads = 8;
+		detach = false;
 	}
 };
