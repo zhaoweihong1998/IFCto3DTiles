@@ -80,9 +80,9 @@ void MyGltfExporter::exportMeshes()
     for (unsigned int idx_mesh = 0; idx_mesh < meshes.size(); ++idx_mesh) {
         
         
-        const MyMeshInfo mesh = meshes[idx_mesh];
+        const shared_ptr<MyMesh> mesh = meshes[idx_mesh];
         
-        std::string name = mesh.myMesh->name;
+        std::string name = mesh->name;
         std::string meshId = mAsset->FindUniqueID(name,"mesh");
         
         Ref<Mesh> m = mAsset->meshes.Create(meshId);
@@ -91,25 +91,25 @@ void MyGltfExporter::exportMeshes()
         m->name = name;
         p.material = mAsset->materials.Get(idx_mesh);
         
-        p.batchId = mesh.myMesh->batchId;
+        p.batchId = mesh->batchId;
         
-        float* pos = (float*)malloc(sizeof(float) * mesh.myMesh->vn * 3);
+        float* pos = (float*)malloc(sizeof(float) * mesh->vn * 3);
         float* ind_pos = pos;
         /*unsigned int* bacthID = (unsigned int*)malloc(sizeof(unsigned int) * mesh.myMesh->vn);
         unsigned int* index_batchId = bacthID;*/
         float* nor = nullptr;
         float* ind_nor = nullptr;
         
-        nor = (float*)malloc(sizeof(float) * mesh.myMesh->vn * 3);
+        nor = (float*)malloc(sizeof(float) * mesh->vn * 3);
         ind_nor = nor;
         
-        unsigned int* index = (unsigned int*)malloc(sizeof(unsigned int) * mesh.myMesh->fn * 3);
+        unsigned int* index = (unsigned int*)malloc(sizeof(unsigned int) * mesh->fn * 3);
         unsigned int* ind_index = index;
         unsigned int ind = 0;
 
-        unsigned int BatchId = mesh.myMesh->batchId;
+        unsigned int BatchId = mesh->batchId;
         m_vertexUintMap.clear();
-        for (std::vector<MyVertex>::iterator it = mesh.myMesh->vert.begin(); it != mesh.myMesh->vert.end(); ++it)
+        for (std::vector<MyVertex>::iterator it = mesh->vert.begin(); it != mesh->vert.end(); ++it)
         {
             if (it->IsD())
             {
@@ -130,7 +130,7 @@ void MyGltfExporter::exportMeshes()
             
         }
         
-        for (std::vector<MyFace>::iterator it = mesh.myMesh->face.begin(); it != mesh.myMesh->face.end(); ++it)
+        for (std::vector<MyFace>::iterator it = mesh->face.begin(); it != mesh->face.end(); ++it)
         {
             if (it->IsD())
             {
@@ -144,15 +144,15 @@ void MyGltfExporter::exportMeshes()
             }
         }
         
-        Ref<Accessor> v = ExportData(*mAsset, meshId, b, mesh.myMesh->vn, pos, AttribType::VEC3, AttribType::VEC3, ComponentType_FLOAT);
+        Ref<Accessor> v = ExportData(*mAsset, meshId, b, mesh->vn, pos, AttribType::VEC3, AttribType::VEC3, ComponentType_FLOAT);
         //Ref<Accessor> batch = ExportData(*mAsset, meshId, b, mesh.myMesh->vn, bacthID, AttribType::SCALAR, AttribType::SCALAR, ComponentType_UNSIGNED_INT);
-        if (mesh.myMesh.get()[0].vert[0].normalExist) {
-            Ref<Accessor> n = ExportData(*mAsset, meshId, b, mesh.myMesh->vn, nor, AttribType::VEC3, AttribType::VEC3, ComponentType_FLOAT);
+        if (mesh.get()[0].vert[0].normalExist) {
+            Ref<Accessor> n = ExportData(*mAsset, meshId, b, mesh->vn, nor, AttribType::VEC3, AttribType::VEC3, ComponentType_FLOAT);
             if (n) p.attributes.normal.push_back(n);
         }
         if (v) p.attributes.position.push_back(v);
         //if (batch)p.attributes.batch_id.push_back(batch);
-        p.indices = ExportData(*mAsset, meshId, b, mesh.myMesh->fn * 3, index, AttribType::SCALAR, AttribType::SCALAR, ComponentType_UNSIGNED_INT, true);
+        p.indices = ExportData(*mAsset, meshId, b, mesh->fn * 3, index, AttribType::SCALAR, AttribType::SCALAR, ComponentType_UNSIGNED_INT, true);
         p.mode = PrimitiveMode_TRIANGLES;
         if (pos != nullptr) {
             free(pos);
@@ -350,7 +350,7 @@ void MyGltfExporter::exportMaterial()
     aiString aiName;
     int i = 0;
     for (int i = 0; i < meshes.size(); ++i) {
-        const aiMaterial* mat = mScene->mMaterials[meshes[i].material];
+        const aiMaterial* mat = mScene->mMaterials[meshes[i]->maxterialIndex];
 
         std::string id = "material_" + to_string(i);
 
@@ -470,7 +470,7 @@ void MyGltfExporter::exportMaterial()
     
 }
 
-MyGltfExporter::MyGltfExporter(vector<MyMeshInfo> meshes, char* buffername, const aiScene* mScene,bool setBinary, IOSystem* io)
+MyGltfExporter::MyGltfExporter(vector<shared_ptr<MyMesh>> meshes, char* buffername, const aiScene* mScene,bool setBinary, IOSystem* io)
 {
 	this->meshes = meshes;
 	this->bufferName = buffername;

@@ -1,7 +1,18 @@
-#include "SpatialTree.h"
+#include "TreeBuilder.h"
 #include <omp.h>
 
-SpatialTree::SpatialTree(const aiScene& mScene, vector<shared_ptr<MyMesh> >& meshes, const Option& op):
+inline bool myCompareX(shared_ptr<MyMesh>& a, shared_ptr<MyMesh>& b) {
+	return a->bbox.Center().V()[0] < b->bbox.Center().V()[0];
+}
+inline bool myCompareY(shared_ptr<MyMesh>& a, shared_ptr<MyMesh>& b) {
+	return a->bbox.Center().V()[1] < b->bbox.Center().V()[1];
+}
+inline bool myCompareZ(shared_ptr<MyMesh>& a, shared_ptr<MyMesh>& b) {
+	return a->bbox.Center().V()[2] < b->bbox.Center().V()[2];
+}
+
+
+TreeBuilder::TreeBuilder(const aiScene& mScene, vector<shared_ptr<MyMesh>>& meshes, const Option& op):
 	op(op)
 {
 	this->mScene = &mScene;
@@ -14,8 +25,7 @@ SpatialTree::SpatialTree(const aiScene& mScene, vector<shared_ptr<MyMesh> >& mes
 	Tree = nullptr;
 	kdTree = nullptr;
 }
-
-void SpatialTree::Initialize()
+void TreeBuilder::Initialize()
 {
 	Box3f* sceneBox = new Box3f();
 	sceneBox->min.X() = sceneBox->min.Y() = sceneBox->min.Z() = INFINITY;
@@ -24,37 +34,23 @@ void SpatialTree::Initialize()
 	//add 20211020
 	m_pTileRoot->boundingBox->min.X() = m_pTileRoot->boundingBox->min.Y() = m_pTileRoot->boundingBox->min.Z() = INFINITY;
 	m_pTileRoot->boundingBox->max.X() = m_pTileRoot->boundingBox->max.Y() = m_pTileRoot->boundingBox->max.Z() = -INFINITY;
-	//BigMeshes->boundingBox->min.X() = BigMeshes->boundingBox->min.Y() = BigMeshes->boundingBox->min.Z() = INFINITY;
-	//BigMeshes->boundingBox->max.X() = BigMeshes->boundingBox->max.Y() = BigMeshes->boundingBox->max.Z() = -INFINITY;
 	BigMeshes->originalVertexCount = 0;
 	//end
 	m_pTileRoot->originalVertexCount = 0;
 	for (int i = 0; i < m_meshes->size(); i++) {
 		sceneBox->Add((*m_meshes)[i]->bbox);
-		/*MyMeshInfo meshInfo;
-		meshInfo.myMesh = (*m_meshes)[i];
-		meshInfo.material = (*m_meshes)[i]->maxterialIndex;
-		m_pTileRoot->myMeshInfos.push_back(meshInfo);
-		m_pTileRoot->originalVertexCount += meshInfo.myMesh->vn;*/
 	}
 	for (int i = 0; i < m_meshes->size(); i++) 
 	{
 		int maxDim = (*m_meshes)[i]->bbox.MaxDim();
 		if ((*m_meshes)[i]->bbox.Dim()[maxDim] > 0.4 * (sceneBox->Dim()[maxDim])&&op.detach){
-			MyMeshInfo meshInfo;
-			//BigMeshes->boundingBox->Add((*m_meshes)[i]->bbox);
-			meshInfo.myMesh = (*m_meshes)[i];
-			meshInfo.material = (*m_meshes)[i]->maxterialIndex;
-			BigMeshes->myMeshInfos.push_back(meshInfo);
-			BigMeshes->originalVertexCount += meshInfo.myMesh->vn;
+			BigMeshes->myMeshInfos.push_back((*m_meshes)[i]);
+			BigMeshes->originalVertexCount += (*m_meshes)[i]->vn;
 		}
 		else {
-			MyMeshInfo meshInfo;
 			m_pTileRoot->boundingBox->Add((*m_meshes)[i]->bbox);
-			meshInfo.myMesh = (*m_meshes)[i];
-			meshInfo.material = (*m_meshes)[i]->maxterialIndex;
-			m_pTileRoot->myMeshInfos.push_back(meshInfo);
-			m_pTileRoot->originalVertexCount += meshInfo.myMesh->vn;
+			m_pTileRoot->myMeshInfos.push_back((*m_meshes)[i]);
+			m_pTileRoot->originalVertexCount += (*m_meshes)[i]->vn;
 		}
 	}
 	if (BigMeshes->myMeshInfos.size() != 0)
@@ -66,12 +62,9 @@ void SpatialTree::Initialize()
 	}
 	else 
 		m_pTileRoot->parent = nullptr;
-	//m_pTileRoot->boundingBox = sceneBox;
-	//m_pTileRoot->parent = nullptr;
 	if(m_pTileRoot->myMeshInfos.size()>op.MaxMeshPerNode)splitTreeNode(m_pTileRoot);
 }
-
-TileInfo* SpatialTree::GetTilesetInfo()
+TileInfo* TreeBuilder::GetTilesetInfo()
 {
 	if (op.Method==0) {
 		if (m_treeDepth < op.Level) {
@@ -94,20 +87,7 @@ TileInfo* SpatialTree::GetTilesetInfo()
 		else return m_pTileRoot;
 	}
 }
-
-bool myCompareX(MyMeshInfo& a, MyMeshInfo& b) {
-	return a.myMesh->bbox.Center().V()[0] < b.myMesh->bbox.Center().V()[0];
-}
-
-bool myCompareY(MyMeshInfo& a, MyMeshInfo& b) {
-	return a.myMesh->bbox.Center().V()[1] < b.myMesh->bbox.Center().V()[1];
-}
-
-bool myCompareZ(MyMeshInfo& a, MyMeshInfo& b) {
-	return a.myMesh->bbox.Center().V()[2] < b.myMesh->bbox.Center().V()[2];
-}
-
-void SpatialTree::splitTreeNode(TileInfo* parentTile)
+void TreeBuilder::splitTreeNode(TileInfo* parentTile)
 {
 	if(op.Method==0)
 	{
@@ -133,55 +113,55 @@ void SpatialTree::splitTreeNode(TileInfo* parentTile)
 		pLeft->boundingBox->max.X() = pLeft->boundingBox->max.Y() = pLeft->boundingBox->max.Z() = -INFINITY;
 		pRight->boundingBox->min.X() = pRight->boundingBox->min.Y() = pRight->boundingBox->min.Z() = INFINITY;
 		pRight->boundingBox->max.X() = pRight->boundingBox->max.Y() = pRight->boundingBox->max.Z() = -INFINITY;
-		vector<MyMeshInfo> meshInfos = parentTile->myMeshInfos;
+		vector<shared_ptr<MyMesh>> meshInfos = parentTile->myMeshInfos;
 		pLeft->originalVertexCount = 0;
 		pRight->originalVertexCount = 0;
 		int vertexCount = 0;
 		if (dim.X() > dim.Y() && dim.X() > dim.Z()) {
 			sort(meshInfos.begin(), meshInfos.end(), myCompareX);
 			for (int i = 0; i < meshInfos.size(); ++i) {
-				vertexCount += meshInfos[i].myMesh->vn;
+				vertexCount += meshInfos[i]->vn;
 				if (vertexCount < totalVertexCount / 2) {
 					pLeft->myMeshInfos.push_back(meshInfos[i]);
-					pLeft->originalVertexCount += meshInfos[i].myMesh->vn;
-					pLeft->boundingBox->Add(meshInfos[i].myMesh->bbox);
+					pLeft->originalVertexCount += meshInfos[i]->vn;
+					pLeft->boundingBox->Add(meshInfos[i]->bbox);
 				}
 				else {
 					pRight->myMeshInfos.push_back(meshInfos[i]);
-					pRight->originalVertexCount += meshInfos[i].myMesh->vn;
-					pRight->boundingBox->Add(meshInfos[i].myMesh->bbox);
+					pRight->originalVertexCount += meshInfos[i]->vn;
+					pRight->boundingBox->Add(meshInfos[i]->bbox);
 				}
 			}
 		}
 		else if (dim.Y() > dim.X() && dim.Y() > dim.Z()) {
 			sort(meshInfos.begin(), meshInfos.end(), myCompareY);
 			for (int i = 0; i < meshInfos.size(); ++i) {
-				vertexCount += meshInfos[i].myMesh->vn;
+				vertexCount += meshInfos[i]->vn;
 				if (vertexCount < totalVertexCount / 2) {
 					pLeft->myMeshInfos.push_back(meshInfos[i]);
-					pLeft->originalVertexCount += meshInfos[i].myMesh->vn;
-					pLeft->boundingBox->Add(meshInfos[i].myMesh->bbox);
+					pLeft->originalVertexCount += meshInfos[i]->vn;
+					pLeft->boundingBox->Add(meshInfos[i]->bbox);
 				}
 				else {
 					pRight->myMeshInfos.push_back(meshInfos[i]);
-					pRight->originalVertexCount += meshInfos[i].myMesh->vn;
-					pRight->boundingBox->Add(meshInfos[i].myMesh->bbox);
+					pRight->originalVertexCount += meshInfos[i]->vn;
+					pRight->boundingBox->Add(meshInfos[i]->bbox);
 				}
 			}
 		}
 		else {
 			sort(meshInfos.begin(), meshInfos.end(), myCompareZ);
 			for (int i = 0; i < meshInfos.size(); ++i) {
-				vertexCount += meshInfos[i].myMesh->vn;
+				vertexCount += meshInfos[i]->vn;
 				if (vertexCount < totalVertexCount / 2) {
 					pLeft->myMeshInfos.push_back(meshInfos[i]);
-					pLeft->originalVertexCount += meshInfos[i].myMesh->vn;
-					pLeft->boundingBox->Add(meshInfos[i].myMesh->bbox);
+					pLeft->originalVertexCount += meshInfos[i]->vn;
+					pLeft->boundingBox->Add(meshInfos[i]->bbox);
 				}
 				else {
 					pRight->myMeshInfos.push_back(meshInfos[i]);
-					pRight->originalVertexCount += meshInfos[i].myMesh->vn;
-					pRight->boundingBox->Add(meshInfos[i].myMesh->bbox);
+					pRight->originalVertexCount += meshInfos[i]->vn;
+					pRight->boundingBox->Add(meshInfos[i]->bbox);
 				}
 			}
 		}
@@ -208,14 +188,14 @@ void SpatialTree::splitTreeNode(TileInfo* parentTile)
 		m_correntDepth--;
 	}
 	else if (op.Method == 5) {
-		kdTree = new kdTreeAccel(parentTile);
-		kdTree->BuildTree();
+		kdTree = new KDTreeAccel(parentTile);
 		kdTree->setMaxMesh(op.MaxMeshPerNode);
 		kdTree->setMaxDepth(op.Level);
+		kdTree->BuildTree();
 		buildTree(parentTile, 0);
 	}
 	else {
-		Tree = new TreeBuilder(parentTile);
+		Tree = new BVHAccel(parentTile);
 		Tree->setMinMeshPerNode(op.MaxMeshPerNode);
 		Tree->setThreadNum(op.nThreads);
 		Tree->setMethod(op.Method);
@@ -223,8 +203,7 @@ void SpatialTree::splitTreeNode(TileInfo* parentTile)
 		buildTree(parentTile, root);
 	}
 }
-
-void SpatialTree::recomputeTileBox(TileInfo* parent)
+void TreeBuilder::recomputeTileBox(TileInfo* parent)
 {
 	for (int i = 0; i < parent->children.size(); ++i) {
 		recomputeTileBox(parent->children[i]);
@@ -233,8 +212,7 @@ void SpatialTree::recomputeTileBox(TileInfo* parent)
 		parent->myMeshInfos.clear();
 	}
 }
-
-void SpatialTree::buildTree(TileInfo* parent, shared_ptr<BuildNode> node) {
+void TreeBuilder::buildTree(TileInfo* parent, shared_ptr<BVHAccelNode> node) {
 	if (m_correntDepth > m_treeDepth) {
 		m_treeDepth = m_correntDepth;
 	}
@@ -253,18 +231,17 @@ void SpatialTree::buildTree(TileInfo* parent, shared_ptr<BuildNode> node) {
 	parent->boundingBox = &node->bounds;
 	if (parent->children.size() < 1) {
 		for (int i = node->firstPrimOffset; i < node->firstPrimOffset + node->nPrimitives; i++) {
-			parent->myMeshInfos.push_back(*Tree->getMeshInfo(i));
+			parent->myMeshInfos.push_back(Tree->getMeshInfo(i));
 		}
 	}
 	m_correntDepth--;
 }
-
-void SpatialTree::buildTree(TileInfo* parent, int index) {
+void TreeBuilder::buildTree(TileInfo* parent, int index) {
 	if (m_correntDepth > m_treeDepth) {
 		m_treeDepth = m_correntDepth;
 	}
 	m_correntDepth++;
-	kdAccelNode* node = kdTree->getNode(index);
+	KDAccelNode* node = kdTree->getNode(index);
 	if (node->IsLeaf()) {
 		int nPrimitives = node->nPrimitives();
 		if (nPrimitives == 1) {
@@ -291,21 +268,21 @@ void SpatialTree::buildTree(TileInfo* parent, int index) {
 	m_correntDepth--;
 }
 
-TreeBuilder::TreeBuilder(TileInfo* rootTile)
+
+BVHAccel::BVHAccel(TileInfo* rootTile)
 {
 	for (int i = 0; i < rootTile->myMeshInfos.size(); i++) {
-		primitives.push_back(&rootTile->myMeshInfos[i]);
+		primitives.push_back(rootTile->myMeshInfos[i]);
 	}
 	nThreads = 4;
 	maxPrimInNode = 500;
-	method = TreeBuilder::SplitMethod::SAH;
+	method = BVHAccel::SplitMethod::SAH;
 }
-
-TreeBuilder::~TreeBuilder()
+BVHAccel::~BVHAccel()
 {
 }
-shared_ptr<BuildNode> TreeBuilder::recursiveBuild(std::vector<PrimitiveInfo>& primitiveInfo, int start, int end, std::vector< MyMeshInfo*>& orderedPrims) {
-	shared_ptr<BuildNode> node(new BuildNode());
+shared_ptr<BVHAccelNode> BVHAccel::recursiveBuild(std::vector<PrimitiveInfo>& primitiveInfo, int start, int end, std::vector<shared_ptr<MyMesh>>& orderedPrims) {
+	shared_ptr<BVHAccelNode> node(new BVHAccelNode());
 	Box3f bounds;
 	bounds.min.X() = bounds.min.Y() = bounds.min.Z() = INFINITY;
 	bounds.max.X() = bounds.max.Y() = bounds.max.Z() = -INFINITY;
@@ -446,19 +423,18 @@ shared_ptr<BuildNode> TreeBuilder::recursiveBuild(std::vector<PrimitiveInfo>& pr
 	}
 	return node;
 }
-shared_ptr<BuildNode> TreeBuilder::getRoot(){
+shared_ptr<BVHAccelNode> BVHAccel::getRoot(){
 	std::vector<PrimitiveInfo> primitiveInfo(primitives.size());
 	for (int i = 0; i < primitives.size(); i++) {
-		primitiveInfo[i] = { i,primitives[i]->myMesh->bbox };
+		primitiveInfo[i] = { i,primitives[i]->bbox };
 	}
-	std::vector<MyMeshInfo*> orderedPrims;
-	shared_ptr<BuildNode> root;
-	if(method==TreeBuilder::SplitMethod::HLBVH)root = HLBuild(primitiveInfo, orderedPrims);
+	std::vector<shared_ptr<MyMesh>> orderedPrims;
+	shared_ptr<BVHAccelNode> root;
+	if(method==BVHAccel::SplitMethod::HLBVH)root = HLBuild(primitiveInfo, orderedPrims);
 	else root = recursiveBuild(primitiveInfo, 0, primitives.size(), orderedPrims);
 	primitives.swap(orderedPrims);
 	return root;
 }
-
 static inline uint32_t Left(uint32_t x) {
 	if (x == (1 << 10))--x;
 	x = (x | x << 16) & 0b00000011000000000000000011111111;
@@ -467,12 +443,10 @@ static inline uint32_t Left(uint32_t x) {
 	x = (x | x << 2) & 0b00001001001001001001001001001001;
 	return x;
 }
-
 static inline uint32_t EncodeMorton3(const Point3f& p) {
 	return (Left(p.X()) << 2) | (Left(p.Y()) < 1) | (Left(p.Z()));
 }
-
-shared_ptr<BuildNode> TreeBuilder::HLBuild(std::vector<PrimitiveInfo>& primitiveInfo, std::vector<MyMeshInfo*>& orderedPrims) {
+shared_ptr<BVHAccelNode> BVHAccel::HLBuild(std::vector<PrimitiveInfo>& primitiveInfo, std::vector<shared_ptr<MyMesh>>& orderedPrims) {
 	Box3f bounds;
 	omp_set_num_threads(nThreads);
 
@@ -530,7 +504,7 @@ shared_ptr<BuildNode> TreeBuilder::HLBuild(std::vector<PrimitiveInfo>& primitive
 	printf("used time: %f\n", endTime - startTime);
 
 
-	vector<BuildNode*> finishedTreeLets;
+	vector<BVHAccelNode*> finishedTreeLets;
 	for (LBVHTreeLet& treeLet : treeLetsToBuild) {
 		finishedTreeLets.push_back(treeLet.buildNodes);
 	}
@@ -538,10 +512,9 @@ shared_ptr<BuildNode> TreeBuilder::HLBuild(std::vector<PrimitiveInfo>& primitive
 	return buildUpperSAH(finishedTreeLets, 0, finishedTreeLets.size());
 
 }
-
-BuildNode* TreeBuilder::emitBVH(const vector<PrimitiveInfo>& primitiveInfo, MortonPrimitive* mortonPrims, int nPrimitives, vector<MyMeshInfo*>& orderedPrims, int& orderedPrimOffset, int bitIndex) {
+BVHAccelNode* BVHAccel::emitBVH(const vector<PrimitiveInfo>& primitiveInfo, MortonPrimitive* mortonPrims, int nPrimitives, vector<shared_ptr<MyMesh>>& orderedPrims, int& orderedPrimOffset, int bitIndex) {
 	if (bitIndex == -1 || nPrimitives < maxPrimInNode) {
-		BuildNode* node = new BuildNode();
+		BVHAccelNode* node = new BVHAccelNode();
 		Box3f bounds;
 		bounds.min.X() = bounds.min.Y() = bounds.min.Z() = INFINITY;
 		bounds.max.X() = bounds.max.Y() = bounds.max.Z() = -INFINITY;
@@ -571,26 +544,25 @@ BuildNode* TreeBuilder::emitBVH(const vector<PrimitiveInfo>& primitiveInfo, Mort
 			}
 		}
 		int splitOffset = searchEnd;
-		BuildNode* node = new BuildNode();
-		BuildNode* lbvh[2] = {
+		BVHAccelNode* node = new BVHAccelNode();
+		BVHAccelNode* lbvh[2] = {
 			emitBVH(primitiveInfo,mortonPrims,splitOffset,orderedPrims, orderedPrimOffset,bitIndex - 1),
 			emitBVH(primitiveInfo,&mortonPrims[splitOffset],nPrimitives - splitOffset,orderedPrims, orderedPrimOffset,bitIndex - 1)
 		};
 		int axis = bitIndex % 3;
-		shared_ptr<BuildNode> ptr1(lbvh[0]);
-		shared_ptr<BuildNode> ptr2(lbvh[1]);
+		shared_ptr<BVHAccelNode> ptr1(lbvh[0]);
+		shared_ptr<BVHAccelNode> ptr2(lbvh[1]);
 		node->InitInterior(axis, ptr1, ptr2);
 		return node;
 	}
 }
-
-shared_ptr<BuildNode> TreeBuilder::buildUpperSAH(vector<BuildNode*>& treeletRoot, int start, int end) {
+shared_ptr<BVHAccelNode> BVHAccel::buildUpperSAH(vector<BVHAccelNode*>& treeletRoot, int start, int end) {
 	int nPrimitive = end - start;
 	if (nPrimitive == 1) {
-		return shared_ptr<BuildNode>(treeletRoot[start]);
+		return shared_ptr<BVHAccelNode>(treeletRoot[start]);
 	}
 	else {
-		shared_ptr<BuildNode> node(new BuildNode());
+		shared_ptr<BVHAccelNode> node(new BVHAccelNode());
 		Box3f bounds;
 		bounds.min.X() = bounds.min.Y() = bounds.min.Z() = INFINITY;
 		bounds.max.X() = bounds.max.Y() = bounds.max.Z() = -INFINITY;
@@ -608,7 +580,7 @@ shared_ptr<BuildNode> TreeBuilder::buildUpperSAH(vector<BuildNode*>& treeletRoot
 		if (nPrimitive <= 4) {
 			/*int mid = (start + end) / 2;*/
 			std::nth_element(&treeletRoot[start], &treeletRoot[mid], &treeletRoot[end - 1] + 1,
-				[dim](const BuildNode* a, const BuildNode* b) {
+				[dim](const BVHAccelNode* a, const BVHAccelNode* b) {
 					return a->bounds.Center()[dim] < b->bounds.Center()[dim];
 				});
 		}
@@ -657,8 +629,8 @@ shared_ptr<BuildNode> TreeBuilder::buildUpperSAH(vector<BuildNode*>& treeletRoot
 					minCostSplit = i;
 				}
 			}
-			BuildNode** pmid = std::partition(&treeletRoot[start], &treeletRoot[end - 1] + 1,
-				[=](const BuildNode* pi) {
+			BVHAccelNode** pmid = std::partition(&treeletRoot[start], &treeletRoot[end - 1] + 1,
+				[=](const BVHAccelNode* pi) {
 					int b = nBuckets * Offset(pi->bounds.Center(), centroidBounds)[dim];
 					if (b == nBuckets)b = nBuckets - 1;
 					return b <= minCostSplit;
@@ -669,8 +641,7 @@ shared_ptr<BuildNode> TreeBuilder::buildUpperSAH(vector<BuildNode*>& treeletRoot
 		return node;
 	}
 }
-
-void TreeBuilder::RadixSort(vector<MortonPrimitive>* v) {
+void BVHAccel::RadixSort(vector<MortonPrimitive>* v) {
 	vector<MortonPrimitive> tempVector(v->size());
 	constexpr int bitsPerPass = 6;
 	constexpr int nBits = 30;
@@ -704,11 +675,25 @@ void TreeBuilder::RadixSort(vector<MortonPrimitive>* v) {
 	}
 }
 
-void kdTreeAccel::BuildTree()
+
+KDTreeAccel::KDTreeAccel(TileInfo* rootTile, int isectCost, int traversalCost,
+	float emptyBonus, int maxPrims, int _maxDepth) :isectCost(isectCost),
+	traversalCost(traversalCost), maxPrims(maxPrims), emptyBonus(emptyBonus), nodes(nullptr) {
+	nAllocedNodes = nextFreeNode = 0;
+	for (int i = 0; i < rootTile->myMeshInfos.size(); i++) {
+		primitives.push_back(rootTile->myMeshInfos[i]);
+	}
+	if (_maxDepth <= 0)
+		this->maxDepth = std::round(8 + 1.3f * _Bit_scan_reverse(primitives.size()));
+	else this->maxDepth = _maxDepth;
+	bounds.min.X() = bounds.min.Y() = bounds.min.Z() = INFINITY;
+	bounds.max.X() = bounds.max.Y() = bounds.max.Z() = -INFINITY;
+}
+void KDTreeAccel::BuildTree()
 {
 	std::vector<Box3f> primBounds;
-	for (const MyMeshInfo* prim : primitives) {
-		Box3f b = prim->myMesh->bbox;
+	for (const shared_ptr<MyMesh> prim : primitives) {
+		Box3f b = prim->bbox;
 		bounds.Add(b);
 		primBounds.push_back(b);
 	}
@@ -726,15 +711,14 @@ void kdTreeAccel::BuildTree()
 	std::unique_ptr<int[]> prims1(new int[(maxDepth + 1) * primitives.size()]);
 	buildTree(0, bounds, primBounds, primNums.get(), primitives.size(), maxDepth, edges, prims0.get(), prims1.get(),0);
 }
-
-void kdTreeAccel::buildTree(int nodeNum, const Box3f nodeBounds, const std::vector<Box3f>& allPrimimBounds,
+void KDTreeAccel::buildTree(int nodeNum, const Box3f nodeBounds, const std::vector<Box3f>& allPrimimBounds,
 	int* primNums, int nPrimitives, int depth,
 	const std::unique_ptr<BoundEdge[]> edges[3], int* prims0, int* prims1, int badRefines) {
 	if (nextFreeNode == nAllocedNodes) {
 		int nNewAllocaNodes = std::max(2 * nAllocedNodes, 512);
-		kdAccelNode* n = (kdAccelNode*)malloc(nNewAllocaNodes * sizeof(kdAccelNode));
+		KDAccelNode* n = (KDAccelNode*)malloc(nNewAllocaNodes * sizeof(KDAccelNode));
 		if (nAllocedNodes > 0) {
-			memcpy(n, nodes, nAllocedNodes * sizeof(kdAccelNode));
+			memcpy(n, nodes, nAllocedNodes * sizeof(KDAccelNode));
 		}
 		nodes = n;
 		nAllocedNodes = nNewAllocaNodes;

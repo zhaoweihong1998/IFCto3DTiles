@@ -25,7 +25,7 @@ class GLTF_API MyGltfExporter
 {
 private:
 	unordered_map<MyVertex*, uint32_t> m_vertexUintMap;
-	vector<MyMeshInfo> meshes;
+	vector<shared_ptr<MyMesh>> meshes;
 	char* bufferName;
 	const aiScene* mScene;
 	Asset* mAsset;
@@ -50,7 +50,7 @@ private:
 
 	//void MergeMeshes();
 public:
-	MyGltfExporter(vector<MyMeshInfo> meshes, char* buffername, const aiScene* mScene, bool setBinary, IOSystem* io=0);
+	MyGltfExporter(vector<shared_ptr<MyMesh>> meshes, char* buffername, const aiScene* mScene, bool setBinary, IOSystem* io=0);
 	void constructAsset();
 	void write();
 };

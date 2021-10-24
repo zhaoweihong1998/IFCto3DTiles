@@ -26,9 +26,9 @@ void MyMeshOptimizer::mergeMeshes(unsigned int material, vector<shared_ptr< MyMe
 				totalVertex += myMesh->vn;
 				totalFace += myMesh->fn;
 			}
-			MyMeshInfo meshInfo;
-			meshInfo.material = material;
-			meshInfo.myMesh = mergedMesh;
+			shared_ptr<MyMesh> meshInfo;
+			meshInfo->maxterialIndex = material;
+			meshInfo = mergedMesh;
 			mergedMesh = make_shared<MyMesh>();
 			mergeMesh.push_back(meshInfo);
 			totalVertex = 0;
@@ -42,7 +42,7 @@ void MyMeshOptimizer::mergeMeshes(unsigned int material, vector<shared_ptr< MyMe
 	}
 }
 
-MyMeshOptimizer::MyMeshOptimizer(vector<MyMeshInfo> meshes)
+MyMeshOptimizer::MyMeshOptimizer(vector<shared_ptr<MyMesh>> meshes)
 {
 	this->meshes = meshes;
 	m_pParams = new tri::TriEdgeCollapseQuadricParameter();
@@ -67,18 +67,18 @@ void MyMeshOptimizer::Domerge()
 	unordered_map<int, MergeMeshInfo> materialMeshMap;
 	for (int i = 0; i < meshes.size(); ++i)
 	{
-		if (materialMeshMap.count(meshes[i].material) > 0)
+		if (materialMeshMap.count(meshes[i]->maxterialIndex) > 0)
 		{
-			materialMeshMap.at(meshes[i].material).meshes.push_back(meshes[i].myMesh);
+			materialMeshMap.at(meshes[i]->maxterialIndex).meshes.push_back(meshes[i]);
 		}
 		else
 		{
 			std::vector<shared_ptr< MyMesh>> myMeshesToMerge;
-			myMeshesToMerge.push_back(meshes[i].myMesh);
+			myMeshesToMerge.push_back(meshes[i]);
 			MergeMeshInfo mergeMeshInfo;
 			mergeMeshInfo.meshes = myMeshesToMerge;
-			mergeMeshInfo.material = meshes[i].material;
-			materialMeshMap.insert(make_pair(meshes[i].material, mergeMeshInfo));
+			mergeMeshInfo.material = meshes[i]->maxterialIndex;
+			materialMeshMap.insert(make_pair(meshes[i]->maxterialIndex, mergeMeshInfo));
 		}
 	}
 
@@ -94,7 +94,7 @@ float MyMeshOptimizer::DoDecemation(float tileBoxMaxLength, bool remesh)
     int totalFaceCount = 0;
     for (int i = 0; i < meshes.size(); i++)
     {
-        totalFaceCount += meshes[i].myMesh->fn;
+        totalFaceCount += meshes[i]->fn;
     }
     if (totalFaceCount == 0)
     {
@@ -110,7 +110,7 @@ float MyMeshOptimizer::DoDecemation(float tileBoxMaxLength, bool remesh)
     int totalFaceBeforeSplit = 0;
     for (int i = 0; i < meshes.size(); ++i)
     {
-		shared_ptr<MyMesh>  myMesh = meshes[i].myMesh;
+		shared_ptr<MyMesh>  myMesh = meshes[i];
 
         if (remesh)
         {
@@ -145,7 +145,7 @@ float MyMeshOptimizer::DoDecemation(float tileBoxMaxLength, bool remesh)
     return tileBoxMaxLength / 16.0f;
 }
 
-vector<MyMeshInfo> MyMeshOptimizer::GetMergeMeshInfos()
+vector<shared_ptr<MyMesh>> MyMeshOptimizer::GetMergeMeshInfos()
 {
 	//return mergeMesh;
 	return meshes;

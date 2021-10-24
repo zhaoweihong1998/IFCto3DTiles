@@ -1,5 +1,5 @@
 #pragma once
-#include "SpatialTree.h"
+#include "TreeBuilder.h"
 #include <assimp/postprocess.h>
 #include <assimp/Importer.hpp>
 #include <assimp/DefaultIOSystem.h>
@@ -40,10 +40,11 @@ public:
 	void createMyMesh();
 	void createNodeBox();
 	void export3DTiles();
+	void getNodeMeshInfos(aiNode* node, vector<MeshInfo>& meshInfos, unsigned int& batch_id, Matrix44f* parentMatrix = nullptr);
 	nlohmann::json traverseExportTileSetJson(TileInfo* tileInfo);
 	void export3DTilesset(TileInfo* rootTile);
 	void exportTiles(TileInfo* rootTile);
 	void simplifyMesh(TileInfo* tileInfo, char* bufferName);
-	void writeGltf(TileInfo* tileInfo, std::vector<MyMeshInfo> meshes, char* bufferName,const aiScene* mScene);
+	void writeGltf(TileInfo* tileInfo, std::vector<shared_ptr<MyMesh>> meshes, char* bufferName,const aiScene* mScene);
 };
 

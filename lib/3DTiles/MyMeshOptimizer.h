@@ -8,17 +8,17 @@ struct MergeMeshInfo {
 class MyMeshOptimizer
 {
 private:
-	vector<MyMeshInfo> meshes;
-	vector<MyMeshInfo> mergeMesh;
+	vector<shared_ptr<MyMesh>> meshes;
+	vector<shared_ptr<MyMesh>> mergeMesh;
 	tri::TriEdgeCollapseQuadricParameter* m_pParams;
 private:
 	void mergeMeshes(unsigned int material, vector<shared_ptr< MyMesh>> meshes);
 public:
-	MyMeshOptimizer(vector<MyMeshInfo> meshes);
+	MyMeshOptimizer(vector<shared_ptr<MyMesh>> meshes);
 	~MyMeshOptimizer() {}
 	void Domerge();
 	float DoDecemation(float targetPercentage, bool remesh = false);
-	vector<MyMeshInfo> GetMergeMeshInfos();
+	vector<shared_ptr<MyMesh>> GetMergeMeshInfos();
 
 };
 

@@ -162,7 +162,7 @@ class TileInfo {
 public:
     int level;
     float geometryError;
-    std::vector<MyMeshInfo> myMeshInfos;
+    std::vector<shared_ptr<MyMesh>> myMeshInfos;
     std::vector<TileInfo* > children;
     Box3f* boundingBox;
     TileInfo* parent;

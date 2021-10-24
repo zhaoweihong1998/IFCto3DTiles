@@ -3,7 +3,7 @@
 #include <assimp/scene.h>
 #include "Option.h"
 
-struct BuildNode
+struct BVHAccelNode
 {
 	void InitLeaf(int first, int n, const Box3f& b) {
 		firstPrimOffset = first;
@@ -12,7 +12,7 @@ struct BuildNode
 		children[0] = children[1] = nullptr;
 	}
 
-	void InitInterior(int axis, shared_ptr<BuildNode> c0, shared_ptr<BuildNode> c1) {
+	void InitInterior(int axis, shared_ptr<BVHAccelNode> c0, shared_ptr<BVHAccelNode> c1) {
 		children[0] = c0;
 		children[1] = c1;
 		bounds.min.X() = bounds.min.Y() = bounds.min.Z() = INFINITY;
@@ -23,17 +23,17 @@ struct BuildNode
 		nPrimitives = 0;
 	}
 	Box3f bounds;
-	shared_ptr<BuildNode> children[2];
+	shared_ptr<BVHAccelNode> children[2];
 	int splitAxis, firstPrimOffset, nPrimitives;
 };
 
-class TreeBuilder
+class BVHAccel
 {
 public:
-	TreeBuilder(TileInfo* rootTile);
-	~TreeBuilder();
-	shared_ptr<BuildNode> getRoot();
-	MyMeshInfo* getMeshInfo(int i) {
+	BVHAccel(TileInfo* rootTile);
+	~BVHAccel();
+	shared_ptr<BVHAccelNode> getRoot();
+	shared_ptr<MyMesh> getMeshInfo(int i) {
 		return primitives[i];
 	}
 	void setMinMeshPerNode(int number) {
@@ -80,24 +80,24 @@ private:
 	struct LBVHTreeLet
 	{
 		int startIndex, nPrimitives;
-		BuildNode* buildNodes;
+		BVHAccelNode* buildNodes;
 	};
 
-	std::vector<MyMeshInfo*> primitives;
+	std::vector<shared_ptr<MyMesh>> primitives;
 	SplitMethod method;
 	int maxPrimInNode;
 	int nThreads;
-	shared_ptr<BuildNode> recursiveBuild(std::vector<PrimitiveInfo>& primitiveInfo, int start, int end, std::vector<MyMeshInfo*>& orderedPrims);
-	shared_ptr<BuildNode> HLBuild(std::vector<PrimitiveInfo>& primitiveInfo, std::vector<MyMeshInfo*>& orderedPrims);
+	shared_ptr<BVHAccelNode> recursiveBuild(std::vector<PrimitiveInfo>& primitiveInfo, int start, int end, std::vector<shared_ptr<MyMesh>>& orderedPrims);
+	shared_ptr<BVHAccelNode> HLBuild(std::vector<PrimitiveInfo>& primitiveInfo, std::vector<shared_ptr<MyMesh>>& orderedPrims);
 
 	void RadixSort(vector<MortonPrimitive>* v);
 
-	BuildNode* emitBVH(const vector<PrimitiveInfo>& primitiveInfo, MortonPrimitive* mortonPrims, int nPrimitives, vector<MyMeshInfo*>& orderedPrims, int& orderedPrimOffset, int bitIndex);
+	BVHAccelNode* emitBVH(const vector<PrimitiveInfo>& primitiveInfo, MortonPrimitive* mortonPrims, int nPrimitives, vector<shared_ptr<MyMesh>>& orderedPrims, int& orderedPrimOffset, int bitIndex);
 
-	shared_ptr<BuildNode> buildUpperSAH(vector<BuildNode*>& treeletRoot, int start, int end);
+	shared_ptr<BVHAccelNode> buildUpperSAH(vector<BVHAccelNode*>& treeletRoot, int start, int end);
 };
 
-struct kdAccelNode
+struct KDAccelNode
 {
 	void InitialLeaf(int* primNums, int np, std::vector<int>* primitiveIndices) 
 	{
@@ -141,29 +141,18 @@ struct kdAccelNode
 	};
 };
 
-class kdTreeAccel
+class KDTreeAccel
 {
 public:
-	kdTreeAccel(TileInfo* rootTile, int isectCost = 80, int traversalCost = 1,
-		float emptyBonus = 0.5, int maxPrims = 800, int _maxDepth = 5):isectCost(isectCost), 
-		traversalCost(traversalCost), maxPrims(maxPrims), emptyBonus(emptyBonus),nodes(nullptr) {
-		nAllocedNodes = nextFreeNode = 0;
-		for (int i = 0; i < rootTile->myMeshInfos.size(); i++) {
-			primitives.push_back(&rootTile->myMeshInfos[i]);
-		}
-		if (_maxDepth <= 0)
-			this->maxDepth = std::round(8 + 1.3f * _Bit_scan_reverse(primitives.size()));
-		else this->maxDepth = _maxDepth;
-		bounds.min.X() = bounds.min.Y() = bounds.min.Z() = INFINITY;
-		bounds.max.X() = bounds.max.Y() = bounds.max.Z() = -INFINITY;
-	}
-	~kdTreeAccel() {
+	KDTreeAccel(TileInfo* rootTile, int isectCost = 80, int traversalCost = 1,
+		float emptyBonus = 0.5, int maxPrims = 800, int _maxDepth = 5);
+	~KDTreeAccel() {
 		free(nodes);
 	}
 	void BuildTree();
-	kdAccelNode* getNode() { return nodes; }
+	KDAccelNode* getNode() { return nodes; }
 	int getIndex(int i) { return primitivesIndices[i]; }
-	kdAccelNode* getNode(int i) { return &nodes[i]; }
+	KDAccelNode* getNode(int i) { return &nodes[i]; }
 	void setMaxMesh(int i) {
 		maxPrims = i;
 	}
@@ -174,9 +163,9 @@ private:
 	const int isectCost, traversalCost;
 	int maxPrims;
 	const float emptyBonus;
-	std::vector<MyMeshInfo*> primitives;
+	std::vector<shared_ptr<MyMesh>> primitives;
 	std::vector<int> primitivesIndices;
-	kdAccelNode* nodes;
+	KDAccelNode* nodes;
 	int nAllocedNodes, nextFreeNode;
 	Box3f bounds;
 	int maxDepth;
@@ -200,15 +189,15 @@ private:
 		const std::unique_ptr<BoundEdge[]> edges[3], int* prims0, int* prims1, int badRefines);
 };
 
-class SpatialTree
+class TreeBuilder
 {
 public:
-	SpatialTree(const aiScene& mScene, vector<shared_ptr<MyMesh>>& meshes, const Option& op);
-	~SpatialTree(){}
+	TreeBuilder(const aiScene& mScene, vector<shared_ptr<MyMesh>>& meshes, const Option& op);
+	~TreeBuilder(){}
 	void Initialize();
 	TileInfo* GetTilesetInfo();
 private:
-	shared_ptr<BuildNode> root;
+	shared_ptr<BVHAccelNode> root;
 	const aiScene* mScene;
 	vector<shared_ptr<MyMesh>>* m_meshes;
 	int m_correntDepth;
@@ -216,14 +205,11 @@ private:
 	TileInfo* m_pTileRoot;
 	TileInfo* BigMeshes;
 	const Option op;
-	TreeBuilder *Tree;
-	kdTreeAccel* kdTree;
+	BVHAccel *Tree;
+	KDTreeAccel* kdTree;
 private:
 	void splitTreeNode(TileInfo* parentTile);
 	void recomputeTileBox(TileInfo* parent);
-	void buildTree(TileInfo* parent, shared_ptr<BuildNode> node);
+	void buildTree(TileInfo* parent, shared_ptr<BVHAccelNode> node);
 	void buildTree(TileInfo* parent, int index);
 };
-
-
-

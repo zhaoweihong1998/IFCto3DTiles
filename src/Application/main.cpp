@@ -13,7 +13,7 @@
 
 static void usage(const char* msg = nullptr) {
     if (msg)
-        fprintf(stderr, "IfcTo3DTiles: %s\n\n", msg);
+        fprintf(stderr, "IfcTo3DTiles: %s\n\n", msg); 
 
     fprintf(stderr, R"(usage: IfcTo3DTiles [<options>]
 options:
@@ -72,7 +72,6 @@ void main(int argc, const char* argv[]){
                 std::stringstream s;
                 s << argv[++i];
                 s >> op.Level;
-                op.Level--;
             }
         }
         else if (!strcmp(argv[i], "--3DTiles") || !strcmp(argv[i], "-3DTiles")) {
@@ -82,10 +81,12 @@ void main(int argc, const char* argv[]){
             else {
                 if (!strcmp(argv[i + 1], "true")) {
                     op.Binary = true;
+                    
                 }
                 else {
                     op.Binary = false;
                 }
+                ++i;
             }
         }
         else if (!strcmp(argv[i], "--log") || !strcmp(argv[i], "-log")) {
@@ -99,6 +100,7 @@ void main(int argc, const char* argv[]){
                 else {
                     op.Log = false;
                 }
+                ++i;
             }
         }
         else if (!strcmp(argv[i], "--detach") || !strcmp(argv[i], "-detach")) {
@@ -112,6 +114,7 @@ void main(int argc, const char* argv[]){
                 else {
                     op.detach = false;
                 }
+                ++i;
             }
         }
         else if (!strcmp(argv[i], "--maxMesh") || !strcmp(argv[i], "-maxMesh")) {
@@ -137,7 +140,10 @@ void main(int argc, const char* argv[]){
         else if (!strcmp(argv[i], "--help") || !strcmp(argv[i], "-help") ||
             !strcmp(argv[i], "-h")) {
             usage();
-            return;
+        }
+        else {
+            string msg = "unkonwn option " + string(argv[i]);
+            usage(msg.c_str());
         }
     }
     std::string pre = get_current_directory();
@@ -147,6 +153,7 @@ void main(int argc, const char* argv[]){
         std::string command = "mkdir " + pre;
         system(command.c_str());
     }
+    op.Level--;
     My3DTilesExporter* handler = new My3DTilesExporter(op);
     handler->export3DTiles();
 }
