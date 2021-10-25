@@ -28,31 +28,10 @@ TreeBuilder::TreeBuilder(const aiScene& mScene, vector<shared_ptr<MyMesh>>& mesh
 void TreeBuilder::Initialize()
 {
 	Box3f* sceneBox = new Box3f();
-	sceneBox->min.X() = sceneBox->min.Y() = sceneBox->min.Z() = INFINITY;
-	sceneBox->max.X() = sceneBox->max.Y() = sceneBox->max.Z() = -INFINITY;
-	m_pTileRoot->boundingBox = new Box3f();
-	//add 20211020
-	m_pTileRoot->boundingBox->min.X() = m_pTileRoot->boundingBox->min.Y() = m_pTileRoot->boundingBox->min.Z() = INFINITY;
-	m_pTileRoot->boundingBox->max.X() = m_pTileRoot->boundingBox->max.Y() = m_pTileRoot->boundingBox->max.Z() = -INFINITY;
-	BigMeshes->originalVertexCount = 0;
-	//end
-	m_pTileRoot->originalVertexCount = 0;
 	for (int i = 0; i < m_meshes->size(); i++) {
 		sceneBox->Add((*m_meshes)[i]->bbox);
 	}
-	for (int i = 0; i < m_meshes->size(); i++) 
-	{
-		int maxDim = (*m_meshes)[i]->bbox.MaxDim();
-		if ((*m_meshes)[i]->bbox.Dim()[maxDim] > 0.4 * (sceneBox->Dim()[maxDim])&&op.detach){
-			BigMeshes->myMeshInfos.push_back((*m_meshes)[i]);
-			BigMeshes->originalVertexCount += (*m_meshes)[i]->vn;
-		}
-		else {
-			m_pTileRoot->boundingBox->Add((*m_meshes)[i]->bbox);
-			m_pTileRoot->myMeshInfos.push_back((*m_meshes)[i]);
-			m_pTileRoot->originalVertexCount += (*m_meshes)[i]->vn;
-		}
-	}
+	preMeshes(BigMeshes, m_pTileRoot,sceneBox, m_meshes, op.detach);
 	if (BigMeshes->myMeshInfos.size() != 0)
 	{
 		m_pTileRoot->parent = BigMeshes;
@@ -60,7 +39,7 @@ void TreeBuilder::Initialize()
 		BigMeshes->boundingBox = sceneBox;
 		BigMeshes->parent = nullptr;
 	}
-	else 
+	else
 		m_pTileRoot->parent = nullptr;
 	if(m_pTileRoot->myMeshInfos.size()>op.MaxMeshPerNode)splitTreeNode(m_pTileRoot);
 }
@@ -98,8 +77,6 @@ void TreeBuilder::splitTreeNode(TileInfo* parentTile)
 		Point3f dim = parentTile->boundingBox->Dim();
 		int i;
 		int totalVertexCount = parentTile->originalVertexCount;
-		if (op.Log)std::cout << m_correntDepth << ":" << totalVertexCount << std::endl;
-
 		if (parentTile->myMeshInfos.size() < op.MaxMeshPerNode || m_correntDepth > op.Level) {
 			m_correntDepth--;
 			return;
@@ -267,7 +244,59 @@ void TreeBuilder::buildTree(TileInfo* parent, int index) {
 	}
 	m_correntDepth--;
 }
-
+void TreeBuilder::preMeshes(TileInfo* BigMeshes, TileInfo* root, Box3f* box, vector<shared_ptr<MyMesh>>* meshes,bool detach) {
+	
+	for (int i = 0; i < meshes->size(); i++)
+	{
+		int maxDim = (*meshes)[i]->bbox.MaxDim();
+		if (detach&&(*meshes)[i]->bbox.Dim()[maxDim] > 0.4 * (box->Dim()[maxDim])) {
+			BigMeshes->boundingBox->Add((*meshes)[i]->bbox);
+			BigMeshes->myMeshInfos.push_back((*meshes)[i]);
+			BigMeshes->originalVertexCount += (*meshes)[i]->vn;
+		}
+		else {
+			root->boundingBox->Add((*meshes)[i]->bbox);
+			root->myMeshInfos.push_back((*meshes)[i]);
+			root->originalVertexCount += (*meshes)[i]->vn;
+		}
+	}
+	
+}
+void TreeBuilder::preMeshes(TileInfo* BigMeshes, Box3f* box, vector<shared_ptr<MyMesh>>* meshes) {
+	for (int i = 0; i < meshes->size(); i++)
+	{
+		int maxDim = (*meshes)[i]->bbox.MaxDim();
+		if ((*meshes)[i]->bbox.Dim()[maxDim] > 0.4 * (box->Dim()[maxDim])) {
+			BigMeshes->boundingBox->Add((*meshes)[i]->bbox);
+			BigMeshes->myMeshInfos.push_back((*meshes)[i]);
+			BigMeshes->originalVertexCount += (*meshes)[i]->vn;
+			(*meshes).erase((*meshes).begin() + i);
+		}
+	}
+}
+void TreeBuilder::levelTree() {
+	TileInfo* p = BigMeshes;
+	int level = 0;
+	while (m_meshes->size() >400&&level<=5) {
+		Box3f* sceneBox = new Box3f();
+		for (int i = 0; i < m_meshes->size(); i++) {
+			sceneBox->Add((*m_meshes)[i]->bbox);
+		}
+		preMeshes(p, sceneBox, m_meshes);
+		TileInfo* temp = new TileInfo();
+		temp->parent = BigMeshes;
+		BigMeshes->children.push_back(temp);
+		p = temp;
+		level++;
+	}
+	for (int i = 0; i < m_meshes->size(); i++) {
+		p->boundingBox->Add((*m_meshes)[i]->bbox);
+		p->myMeshInfos.push_back((*m_meshes)[i]);
+		p->originalVertexCount += (*m_meshes)[i]->vn;
+		(*m_meshes).erase((*m_meshes).begin() + i);
+	}
+	if (p->myMeshInfos.size() > op.MaxMeshPerNode)splitTreeNode(p);
+}
 
 BVHAccel::BVHAccel(TileInfo* rootTile)
 {
@@ -284,12 +313,9 @@ BVHAccel::~BVHAccel()
 shared_ptr<BVHAccelNode> BVHAccel::recursiveBuild(std::vector<PrimitiveInfo>& primitiveInfo, int start, int end, std::vector<shared_ptr<MyMesh>>& orderedPrims) {
 	shared_ptr<BVHAccelNode> node(new BVHAccelNode());
 	Box3f bounds;
-	bounds.min.X() = bounds.min.Y() = bounds.min.Z() = INFINITY;
-	bounds.max.X() = bounds.max.Y() = bounds.max.Z() = -INFINITY;
 	for (int i = start; i < end; ++i) {
 		bounds.Add(primitiveInfo[i].bounds);
 	}
-
 	int nPrimitive = end - start;
 
 	if (nPrimitive <= maxPrimInNode) {
@@ -303,8 +329,6 @@ shared_ptr<BVHAccelNode> BVHAccel::recursiveBuild(std::vector<PrimitiveInfo>& pr
 	}
 	else {
 		Box3f centroidBounds;
-		centroidBounds.min.X() = centroidBounds.min.Y() = centroidBounds.min.Z() = INFINITY;
-		centroidBounds.max.X() = centroidBounds.max.Y() = centroidBounds.max.Z() = -INFINITY;
 		for (int i = start; i < end; i++) {
 			centroidBounds.Add(primitiveInfo[i].centroid);
 		}
@@ -322,85 +346,87 @@ shared_ptr<BVHAccelNode> BVHAccel::recursiveBuild(std::vector<PrimitiveInfo>& pr
 		else {
 			switch (method)
 			{
-			case SplitMethod::Middle: {
-				float pmid = (centroidBounds.min[dim]+centroidBounds.max[dim]) / 2;
-				PrimitiveInfo* midPtr = std::partition(&primitiveInfo[start], &primitiveInfo[end - 1] + 1,
-					[dim, pmid](const PrimitiveInfo& pi) {
-						return pi.centroid[dim] < pmid;
-					});
-				mid = midPtr - &primitiveInfo[0];
-				if (mid != start && mid != end)
-					break;
-			}
-			case SplitMethod::EqualCounts: {
-				mid = (start + end) / 2;
-				std::nth_element(&primitiveInfo[start], &primitiveInfo[mid], &primitiveInfo[end - 1] + 1,
-					[dim](const PrimitiveInfo& a, const PrimitiveInfo& b) {
-						return a.centroid[dim] < b.centroid[dim];
-					});
-				break;
-			}
-			case SplitMethod::SAH:
-			default: {
-				if (nPrimitive <= 4 ) {
+				case SplitMethod::Middle: 
+				{
+					float pmid = (centroidBounds.min[dim] + centroidBounds.max[dim]) / 2;
+					PrimitiveInfo* midPtr = std::partition(&primitiveInfo[start], &primitiveInfo[end - 1] + 1,
+						[dim, pmid](const PrimitiveInfo& pi) {
+							return pi.centroid[dim] < pmid;
+						});
+					mid = midPtr - &primitiveInfo[0];
+					if (mid != start && mid != end)
+						break;
+				}
+				case SplitMethod::EqualCounts: 
+				{
 					mid = (start + end) / 2;
 					std::nth_element(&primitiveInfo[start], &primitiveInfo[mid], &primitiveInfo[end - 1] + 1,
 						[dim](const PrimitiveInfo& a, const PrimitiveInfo& b) {
 							return a.centroid[dim] < b.centroid[dim];
 						});
+					break;
 				}
-				else {
+				case SplitMethod::SAH:
+				default: 
+				{
+					int recordMinCost = INT_MAX;
+					int recordDim = -1;
+					float recordSplit = INFINITY;
 					constexpr int nBuckets = 12;
-					struct BucketInfo
-					{
-						int count = 0;
-						Box3f bounds;
-					};
-					BucketInfo buckets[nBuckets];
-					for (int i = 0; i < 12; i++) {
-						buckets[i].bounds.min.X() = buckets[i].bounds.min.Y() = buckets[i].bounds.min.Z() = INFINITY;
-						buckets[i].bounds.max.X() = buckets[i].bounds.max.Y() = buckets[i].bounds.max.Z() = -INFINITY;
-					}
-					for (int i = start; i < end; i++) {
+					for (int i = 0; i < 3; i++) {
+						struct BucketInfo
+						{
+							int count = 0;
+							Box3f bounds;
+						};
+						BucketInfo buckets[nBuckets];
+						for (int i = start; i < end; i++) {
+							int b = nBuckets * Offset(primitiveInfo[i].centroid, centroidBounds)[dim];
+							if (b == nBuckets)b = nBuckets - 1;
+							buckets[b].count++;
+							buckets[b].bounds.Add(primitiveInfo[i].bounds);
+						}
+						float cost[nBuckets - 1];
+						for (int i = 0; i < nBuckets - 1; ++i) {
+							Box3f b0, b1;
+							int count0 = 0, count1 = 0;
+							for (int j = 0; j <= i; j++) {
+								b0.Add(buckets[j].bounds);
+								count0 += buckets[j].count;
+							}
+							for (int j = i + 1; j < nBuckets; j++) {
+								b1.Add(buckets[j].bounds);
+								count1 += buckets[j].count;
+							}
+							cost[i] = 0.125f+(count0*b0.Volume() + count1*b1.Volume()) / bounds.Volume();
+						}
+						float minCost = cost[0];
+						int minCostSplit = 0;
+						for (int i = 1; i < nBuckets - 1; i++) {
+							if (cost[i] < minCost) {
+								minCost = cost[i];
+								minCostSplit = i;
+							}
+						}
+						//add 20211025
 
-						int b = nBuckets * Offset(primitiveInfo[i].centroid,centroidBounds)[dim];
-						if (b == nBuckets)b = nBuckets - 1;
-						buckets[b].count++;
-						buckets[b].bounds.Add(primitiveInfo[i].bounds);
-					}
-					float cost[nBuckets-1];
-					for (int i = 0; i < nBuckets - 1; ++i) {
-						Box3f b0, b1;
-						b0.min.X() = b0.min.Y() = b0.min.Z() = INFINITY;
-						b0.max.X() = b0.max.Y() = b0.max.Z() = -INFINITY;
-						b1.min.X() = b1.min.Y() = b1.min.Z() = INFINITY;
-						b1.max.X() = b1.max.Y() = b1.max.Z() = -INFINITY;
-						int count0 = 0, count1 = 0;
-						for (int j = 0; j <= i; j++) {
-							b0.Add(buckets[j].bounds);
-							count0+=buckets[j].count;
+						if (minCost < recordMinCost) {
+							recordMinCost = minCost;
+							recordDim = dim;
+							recordSplit = minCostSplit;
+							if (recordMinCost < nPrimitive)break;
 						}
-						for (int j = i + 1; j < nBuckets; j++) {
-							b1.Add(buckets[j].bounds);
-							count1+=buckets[j].count;
-						}
-						cost[i] = 0.125f + (count0 * b0.Volume() + count1 * b1.Volume()) / bounds.Volume();
+						dim = (dim + 1) % 3;
+						//end
 					}
-					float minCost = cost[0];
-					int minCostSplit = 0;
-					for (int i = 1; i < nBuckets-1; i++) {
-						if (cost[i] < minCost) {
-							minCost = cost[i];
-							minCostSplit = i;
-						}
-					}
+					
 					float leafCost = nPrimitive;
-					if (nPrimitive>maxPrimInNode && minCost < leafCost) {
+					if (recordMinCost < leafCost) {
 						PrimitiveInfo* pmid = std::partition(&primitiveInfo[start], &primitiveInfo[end - 1] + 1,
 							[=](const PrimitiveInfo& pi) {
-								int b = nBuckets * Offset(pi.centroid, centroidBounds)[dim];
+								int b = nBuckets * Offset(pi.centroid, centroidBounds)[recordDim];
 								if (b == nBuckets)b = nBuckets - 1;
-								return b <= minCostSplit;
+								return b <= recordSplit;
 							});
 						mid = pmid - &primitiveInfo[0];
 					}
@@ -414,9 +440,8 @@ shared_ptr<BVHAccelNode> BVHAccel::recursiveBuild(std::vector<PrimitiveInfo>& pr
 						node->InitLeaf(firstOffset, nPrimitive, bounds);
 						return node;
 					}
+					break;
 				}
-				break;
-			}
 			}
 			node->InitInterior(dim, recursiveBuild(primitiveInfo, start, mid, orderedPrims), recursiveBuild(primitiveInfo, mid, end, orderedPrims));
 		}

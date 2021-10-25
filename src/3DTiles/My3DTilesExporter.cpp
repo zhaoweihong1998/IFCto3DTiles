@@ -168,7 +168,6 @@ void My3DTilesExporter::createNodeBox()
 				}
 			}
 			else {
-
 				for (int k = 0; k < meshInfos[i].mNumMeshes; ++k) {
 					shared_ptr<MyMesh> mesh_ = myMeshes[meshInfos[i].meshIndex[k]];
 					shared_ptr<MyMesh> mesh(new MyMesh());
@@ -335,22 +334,16 @@ void My3DTilesExporter::exportTiles(TileInfo* rootTile)
 }
 void My3DTilesExporter::simplifyMesh(TileInfo* tileInfo, char* bufferName)
 {
-	MyMeshOptimizer op(tileInfo->myMeshInfos);
+	MyMeshOptimizer op(&tileInfo->myMeshInfos);
 
-	//选用包围盒的体积作为误差度量的维度
 	float volume = tileInfo->boundingBox->Volume();
-	//tileInfo->geometryError = op.DoDecemation(maxLength);
-	//volume /= MaxVolume;
-	/*volume = volume * volume * volume;*/
-	
+	op.DoDecemation(0.5);
 	tileInfo->geometryError = volume;
 
-	//取消最底层包围盒为0
-	/*if (tileInfo->children.size() == 0)tileInfo->geometryError = 0.0;*/
-	vector<shared_ptr<MyMesh>> meshes = op.GetMergeMeshInfos();
+	vector<shared_ptr<MyMesh>>* meshes = op.GetMergeMeshInfos();
 	writeGltf(tileInfo, meshes, bufferName, mScene);
 }
-void My3DTilesExporter::writeGltf(TileInfo* tileInfo, std::vector<shared_ptr<MyMesh>> meshes, char* bufferName,const aiScene* mScene)
+void My3DTilesExporter::writeGltf(TileInfo* tileInfo, std::vector<shared_ptr<MyMesh>>* meshes, char* bufferName,const aiScene* mScene)
 {
 	 MyGltfExporter exporter(meshes, bufferName, mScene, op.Binary,this->io);
 	 exporter.constructAsset();

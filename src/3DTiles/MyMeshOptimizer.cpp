@@ -42,7 +42,7 @@ void MyMeshOptimizer::mergeMeshes(unsigned int material, vector<shared_ptr< MyMe
 	}
 }
 
-MyMeshOptimizer::MyMeshOptimizer(vector<shared_ptr<MyMesh>> meshes)
+MyMeshOptimizer::MyMeshOptimizer(vector<shared_ptr<MyMesh>>* meshes)
 {
 	this->meshes = meshes;
 	m_pParams = new tri::TriEdgeCollapseQuadricParameter();
@@ -65,20 +65,20 @@ MyMeshOptimizer::MyMeshOptimizer(vector<shared_ptr<MyMesh>> meshes)
 void MyMeshOptimizer::Domerge()
 {
 	unordered_map<int, MergeMeshInfo> materialMeshMap;
-	for (int i = 0; i < meshes.size(); ++i)
+	for (int i = 0; i < meshes->size(); ++i)
 	{
-		if (materialMeshMap.count(meshes[i]->maxterialIndex) > 0)
+		if (materialMeshMap.count((*meshes)[i]->maxterialIndex) > 0)
 		{
-			materialMeshMap.at(meshes[i]->maxterialIndex).meshes.push_back(meshes[i]);
+			materialMeshMap.at((*meshes)[i]->maxterialIndex).meshes.push_back((*meshes)[i]);
 		}
 		else
 		{
 			std::vector<shared_ptr< MyMesh>> myMeshesToMerge;
-			myMeshesToMerge.push_back(meshes[i]);
+			myMeshesToMerge.push_back((*meshes)[i]);
 			MergeMeshInfo mergeMeshInfo;
 			mergeMeshInfo.meshes = myMeshesToMerge;
-			mergeMeshInfo.material = meshes[i]->maxterialIndex;
-			materialMeshMap.insert(make_pair(meshes[i]->maxterialIndex, mergeMeshInfo));
+			mergeMeshInfo.material = (*meshes)[i]->maxterialIndex;
+			materialMeshMap.insert(make_pair((*meshes)[i]->maxterialIndex, mergeMeshInfo));
 		}
 	}
 
@@ -89,64 +89,48 @@ void MyMeshOptimizer::Domerge()
 	}
 }
 
-float MyMeshOptimizer::DoDecemation(float tileBoxMaxLength, bool remesh)
+void MyMeshOptimizer::DoDecemation(float targetPercentage)
 {
     int totalFaceCount = 0;
-    for (int i = 0; i < meshes.size(); i++)
+    for (int i = 0; i < meshes->size(); i++)
     {
-        totalFaceCount += meshes[i]->fn;
+        totalFaceCount += (*meshes)[i]->fn;
     }
     if (totalFaceCount == 0)
     {
-		return tileBoxMaxLength / 16.0f;
+		return;
     }
 	
-	return tileBoxMaxLength / 16.0f;
-    float decimationRatio = (float)300 / (float)totalFaceCount;
-    if (decimationRatio >= 1.0)
+    int totalFaceBeforeSplit = totalFaceCount;
+	totalFaceCount = 0;
+    for (int i = 0; i < meshes->size(); ++i)
     {
-		tileBoxMaxLength / 16.0f;
-    }
-    int totalFaceBeforeSplit = 0;
-    for (int i = 0; i < meshes.size(); ++i)
-    {
-		shared_ptr<MyMesh>  myMesh = meshes[i];
-
-        if (remesh)
-        {
-            
-        }
+		shared_ptr<MyMesh>  myMesh = (*meshes)[i];
         vcg::LocalOptimization<MyMesh> deciSession(*myMesh, m_pParams);
-        clock_t t1 = std::clock();
+		//myLocalOptimization<MyMesh> deciSession(*myMesh, m_pParams);
+		//myLocalOptimization<MyMesh> deciSession(length,*myMesh, m_pParams);
         deciSession.Init<MyTriEdgeCollapse>();
-        clock_t t2 = std::clock();
-
-        
-        int targetFaceCount = myMesh->fn * decimationRatio;
+        int targetFaceCount = myMesh->fn * targetPercentage;
+		int faceToDel = myMesh->fn - targetFaceCount;
         deciSession.SetTargetSimplices(targetFaceCount); // Target face number;
-        deciSession.SetTimeBudget(1.5f); // Time budget for each cycle
-        deciSession.SetTargetOperations(10000000000);
-        int maxTry = 1000000;
-        int currentTry = 0;
-        do
-        {
-            deciSession.DoOptimization();
-            currentTry++;
-        } while (myMesh->fn > targetFaceCount && currentTry < maxTry);
-        clock_t t3 = std::clock();
+        deciSession.SetTimeBudget(2.0f); // Time budget for each cycle
+		while (deciSession.DoOptimization() && myMesh->fn > targetFaceCount) {
+			printf("Simplifying... %d%%\n", (int)(100 - 100 * (myMesh->fn - targetFaceCount) / (faceToDel)));
+		};
+		deciSession.Finalize<MyTriEdgeCollapse>();
         tri::UpdateTopology<MyMesh>::FaceFace(*myMesh);
+		tri::Clean<MyMesh>::RemoveDuplicateVertex(*myMesh);
         tri::Clean<MyMesh>::RemoveUnreferencedVertex(*myMesh);
 		tri::UpdateBounding<MyMesh>::Box(*myMesh);
-        totalFaceBeforeSplit += myMesh->fn;
+		tri::UpdateNormal<MyMesh>::PerVertex(*myMesh);
+		tri::UpdateNormal<MyMesh>::NormalizePerVertex(*myMesh);
         totalFaceCount += myMesh->fn;
     }
-    printf("tile totalFaceCount before split: %d\n", totalFaceBeforeSplit);
-    printf("tile totalFaceCount after Decimation: %d\n", totalFaceCount);
-    return tileBoxMaxLength / 16.0f;
+	cout << "tile totalFaceCount before Decimation:" << totalFaceBeforeSplit << endl;
+	cout << "tile totalFaceCount after Decimation:" << totalFaceCount << endl;
 }
 
-vector<shared_ptr<MyMesh>> MyMeshOptimizer::GetMergeMeshInfos()
+vector<shared_ptr<MyMesh>>* MyMeshOptimizer::GetMergeMeshInfos()
 {
-	//return mergeMesh;
 	return meshes;
 }

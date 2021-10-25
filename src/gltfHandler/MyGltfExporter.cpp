@@ -77,10 +77,10 @@ void MyGltfExporter::exportMeshes()
         b = mAsset->buffers.Create(bufferName);
     }
     
-    for (unsigned int idx_mesh = 0; idx_mesh < meshes.size(); ++idx_mesh) {
+    for (unsigned int idx_mesh = 0; idx_mesh < meshes->size(); ++idx_mesh) {
         
         
-        const shared_ptr<MyMesh> mesh = meshes[idx_mesh];
+        const shared_ptr<MyMesh> mesh = (*meshes)[idx_mesh];
         
         std::string name = mesh->name;
         std::string meshId = mAsset->FindUniqueID(name,"mesh");
@@ -349,8 +349,8 @@ void MyGltfExporter::exportMaterial()
 {
     aiString aiName;
     int i = 0;
-    for (int i = 0; i < meshes.size(); ++i) {
-        const aiMaterial* mat = mScene->mMaterials[meshes[i]->maxterialIndex];
+    for (int i = 0; i < meshes->size(); ++i) {
+        const aiMaterial* mat = mScene->mMaterials[(*meshes)[i]->maxterialIndex];
 
         std::string id = "material_" + to_string(i);
 
@@ -470,7 +470,7 @@ void MyGltfExporter::exportMaterial()
     
 }
 
-MyGltfExporter::MyGltfExporter(vector<shared_ptr<MyMesh>> meshes, char* buffername, const aiScene* mScene,bool setBinary, IOSystem* io)
+MyGltfExporter::MyGltfExporter(vector<shared_ptr<MyMesh>>* meshes, char* buffername, const aiScene* mScene,bool setBinary, IOSystem* io)
 {
 	this->meshes = meshes;
 	this->bufferName = buffername;

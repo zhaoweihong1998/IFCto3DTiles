@@ -45,6 +45,6 @@ public:
 	void export3DTilesset(TileInfo* rootTile);
 	void exportTiles(TileInfo* rootTile);
 	void simplifyMesh(TileInfo* tileInfo, char* bufferName);
-	void writeGltf(TileInfo* tileInfo, std::vector<shared_ptr<MyMesh>> meshes, char* bufferName,const aiScene* mScene);
+	void writeGltf(TileInfo* tileInfo, std::vector<shared_ptr<MyMesh>>* meshes, char* bufferName,const aiScene* mScene);
 };
 

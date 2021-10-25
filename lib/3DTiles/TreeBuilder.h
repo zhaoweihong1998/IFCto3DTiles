@@ -207,9 +207,14 @@ private:
 	const Option op;
 	BVHAccel *Tree;
 	KDTreeAccel* kdTree;
+	friend class KDTreeAccel;
+	friend class BVHAccel;
 private:
 	void splitTreeNode(TileInfo* parentTile);
 	void recomputeTileBox(TileInfo* parent);
 	void buildTree(TileInfo* parent, shared_ptr<BVHAccelNode> node);
 	void buildTree(TileInfo* parent, int index);
+	void preMeshes(TileInfo* BigMeshes, TileInfo* root, Box3f* box, vector<shared_ptr<MyMesh>>* meshes,bool detach=false);
+	void preMeshes(TileInfo* BigMeshes, Box3f* box, vector<shared_ptr<MyMesh>>* meshes);
+	void levelTree();
 };

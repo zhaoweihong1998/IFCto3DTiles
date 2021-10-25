@@ -39,7 +39,9 @@ private:
 
 };
 typedef tri::BasicVertexPair<MyVertex>  VertexPair;
-class MyEdge : public Edge<MyUsedTypes> {};
+
+
+class MyEdge : public Edge<MyUsedTypes, edge::VertexRef> {};
 
 
 class MyFace : public Face < MyUsedTypes,
@@ -168,6 +170,13 @@ public:
     TileInfo* parent;
     int originalVertexCount;
     std::string contentUri;
+    TileInfo() {
+        boundingBox = new Box3f();
+        parent = nullptr;
+        geometryError = 0.0f;
+        level = 0;
+        originalVertexCount = 0;
+    }
 };
 
 typedef typename MyMesh::VertexPointer VertexPointer;
@@ -177,6 +186,16 @@ typedef typename MyMesh::EdgeIterator EdgeIterator;
 typedef typename MyMesh::ScalarType ScalarType;
 typedef typename MyMesh::VertexType VertexType;
 typedef typename MyMesh::FaceType FaceType;
+
+template<typename MeshType>
+class myLocalOptimization : public LocalOptimization<MeshType> {
+public:
+    myLocalOptimization(float len,MeshType& mm, BaseParameterClass* _pp) :LocalOptimization<MeshType>(mm, _pp) {
+        length = len;
+    }
+private:
+    float length;
+};
 
 
 
