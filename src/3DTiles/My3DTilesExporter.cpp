@@ -9,7 +9,7 @@ My3DTilesExporter::My3DTilesExporter(const Option& op):
 {
 	importer = new Assimp::Importer();
 	io = new Assimp::DefaultIOSystem();
-	this->mScene = importer->ReadFile(this->op.Filename, aiProcess_Triangulate);
+	this->mScene = importer->ReadFile(this->op.Filename, aiProcess_Triangulate);//aiProcess_JoinIdenticalVertices会影响法线质量
 	rootTile = nullptr;
 	myMeshes.clear();
 	m_currentTileLevel = 0;
@@ -335,11 +335,8 @@ void My3DTilesExporter::exportTiles(TileInfo* rootTile)
 void My3DTilesExporter::simplifyMesh(TileInfo* tileInfo, char* bufferName)
 {
 	MyMeshOptimizer op(&tileInfo->myMeshInfos);
-
-	float volume = tileInfo->boundingBox->Volume();
-	op.DoDecemation(0.5);
-	tileInfo->geometryError = volume;
-
+	if(false)op.DoDecemation(0.5);
+	tileInfo->geometryError = tileInfo->boundingBox->Volume();
 	vector<shared_ptr<MyMesh>>* meshes = op.GetMergeMeshInfos();
 	writeGltf(tileInfo, meshes, bufferName, mScene);
 }

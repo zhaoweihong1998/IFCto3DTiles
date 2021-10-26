@@ -284,8 +284,8 @@ void TreeBuilder::levelTree() {
 		}
 		preMeshes(p, sceneBox, m_meshes);
 		TileInfo* temp = new TileInfo();
-		temp->parent = BigMeshes;
-		BigMeshes->children.push_back(temp);
+		temp->parent = p;
+		p->children.push_back(temp);
 		p = temp;
 		level++;
 	}
@@ -369,10 +369,13 @@ shared_ptr<BVHAccelNode> BVHAccel::recursiveBuild(std::vector<PrimitiveInfo>& pr
 				case SplitMethod::SAH:
 				default: 
 				{
-					int recordMinCost = INT_MAX;
+					float recordMinCost = INFINITY;
 					int recordDim = -1;
-					float recordSplit = INFINITY;
-					constexpr int nBuckets = 12;
+					int recordSplit = INT_MIN;
+					float recordExtraMinCost = 1.0;
+					int recordExtraDim = -1;
+					int recordExtraSplit = INT_MIN;
+					constexpr int nBuckets = 24;
 					for (int i = 0; i < 3; i++) {
 						struct BucketInfo
 						{
@@ -387,6 +390,8 @@ shared_ptr<BVHAccelNode> BVHAccel::recursiveBuild(std::vector<PrimitiveInfo>& pr
 							buckets[b].bounds.Add(primitiveInfo[i].bounds);
 						}
 						float cost[nBuckets - 1];
+						float extraCost[nBuckets - 1];
+						float v1[nBuckets - 1], v2[nBuckets - 1];
 						for (int i = 0; i < nBuckets - 1; ++i) {
 							Box3f b0, b1;
 							int count0 = 0, count1 = 0;
@@ -398,29 +403,48 @@ shared_ptr<BVHAccelNode> BVHAccel::recursiveBuild(std::vector<PrimitiveInfo>& pr
 								b1.Add(buckets[j].bounds);
 								count1 += buckets[j].count;
 							}
-							cost[i] = 0.125f+(count0*b0.Volume() + count1*b1.Volume()) / bounds.Volume();
+							cost[i] = 0.125f*i+(count0*b0.Volume() + count1*b1.Volume()) / bounds.Volume();
+							extraCost[i] = (b0.Volume() + b1.Volume()) / bounds.Volume();
+							v1[i] = b0.Volume();
+							v2[i] = b1.Volume();
 						}
 						float minCost = cost[0];
 						int minCostSplit = 0;
+						float minExtraCost = extraCost[0];
+						int minExtraSplit = 0;
 						for (int i = 1; i < nBuckets - 1; i++) {
 							if (cost[i] < minCost) {
 								minCost = cost[i];
 								minCostSplit = i;
 							}
+							if (extraCost[i] < minExtraCost) {
+								minExtraCost = extraCost[i];
+								minExtraSplit = i;
+							}
 						}
 						//add 20211025
-
 						if (minCost < recordMinCost) {
 							recordMinCost = minCost;
 							recordDim = dim;
 							recordSplit = minCostSplit;
-							if (recordMinCost < nPrimitive)break;
+						}
+
+						if (minExtraCost < recordExtraMinCost && v1[minExtraSplit] != 0 && v2[minExtraSplit] != 0) {
+							recordExtraMinCost = minExtraCost;
+							recordExtraDim = dim;
+							recordExtraSplit = minExtraSplit;
 						}
 						dim = (dim + 1) % 3;
 						//end
 					}
-					
 					float leafCost = nPrimitive;
+					//recordExtraMinCost*recordExtraMinCost*leafCost<recordMinCost
+					if (recordExtraMinCost<0.725) {
+						recordDim = recordExtraDim;
+						recordSplit = recordExtraSplit;
+						recordMinCost = recordExtraMinCost * leafCost;
+					}
+
 					if (recordMinCost < leafCost) {
 						PrimitiveInfo* pmid = std::partition(&primitiveInfo[start], &primitiveInfo[end - 1] + 1,
 							[=](const PrimitiveInfo& pi) {
