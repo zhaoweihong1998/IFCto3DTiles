@@ -34,6 +34,9 @@ private:
 	unsigned int batch_id;
 	Assimp::Importer* importer;
 	const Option op;
+	double maxArea;
+	double minArea;
+	Box3f* sceneBox;
 public:
 	My3DTilesExporter(const Option& op);
 	~My3DTilesExporter();
@@ -44,7 +47,8 @@ public:
 	nlohmann::json traverseExportTileSetJson(TileInfo* tileInfo);
 	void export3DTilesset(TileInfo* rootTile);
 	void exportTiles(TileInfo* rootTile);
-	void simplifyMesh(TileInfo* tileInfo, char* bufferName);
+	void simplifyMesh(vector<shared_ptr<MyMesh>>* meshes);
 	void writeGltf(TileInfo* tileInfo, std::vector<shared_ptr<MyMesh>>* meshes, char* bufferName,const aiScene* mScene);
+	void statistic();
 };
 

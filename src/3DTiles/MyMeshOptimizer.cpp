@@ -89,37 +89,63 @@ void MyMeshOptimizer::Domerge()
 	}
 }
 
-void MyMeshOptimizer::DoDecemation(float targetPercentage)
+void MyMeshOptimizer::DoDecemation(float targetPercentage,float area)
 {
     int totalFaceCount = 0;
     for (int i = 0; i < meshes->size(); i++)
     {
         totalFaceCount += (*meshes)[i]->fn;
+		for (auto& face : (*meshes)[i]->face) {
+			if (face.IsD())continue;
+			if (face.area() < area) {
+				face.SetS();
+			}
+		}
     }
+
+	
     if (totalFaceCount == 0)
     {
 		return;
     }
-	
     int totalFaceBeforeSplit = totalFaceCount;
 	totalFaceCount = 0;
     for (int i = 0; i < meshes->size(); ++i)
     {
 		shared_ptr<MyMesh>  myMesh = (*meshes)[i];
+
+
+		// select only the vertices having ALL incident faces selected
+		tri::UpdateSelection<MyMesh>::VertexFromFaceStrict(*myMesh);
+
+		// Mark not writable un-selected vertices
+		for (auto& vi : (*meshes)[i]->vert)
+		{
+			if (!vi.IsD())
+			{
+				if (!vi.IsS()) vi.ClearW();
+				else vi.SetW();
+			}
+		}
+			
         vcg::LocalOptimization<MyMesh> deciSession(*myMesh, m_pParams);
-		//myLocalOptimization<MyMesh> deciSession(*myMesh, m_pParams);
-		//myLocalOptimization<MyMesh> deciSession(length,*myMesh, m_pParams);
         deciSession.Init<MyTriEdgeCollapse>();
         int targetFaceCount = myMesh->fn * targetPercentage;
 		int faceToDel = myMesh->fn - targetFaceCount;
-        deciSession.SetTargetSimplices(targetFaceCount); // Target face number;
-        deciSession.SetTimeBudget(2.0f); // Time budget for each cycle
+        deciSession.SetTargetSimplices(targetFaceCount); 
+        deciSession.SetTimeBudget(0.1f); 
 		while (deciSession.DoOptimization() && myMesh->fn > targetFaceCount) {
 			printf("Simplifying... %d%%\n", (int)(100 - 100 * (myMesh->fn - targetFaceCount) / (faceToDel)));
 		};
 		deciSession.Finalize<MyTriEdgeCollapse>();
+		for (auto vi = myMesh->vert.begin(); vi != myMesh->vert.end(); ++vi)
+		{
+			if (!(*vi).IsD()) (*vi).ClearW();
+			if ((*vi).IsS()) (*vi).ClearS();
+		}
+
         tri::UpdateTopology<MyMesh>::FaceFace(*myMesh);
-		tri::Clean<MyMesh>::RemoveDuplicateVertex(*myMesh);
+		//tri::Clean<MyMesh>::RemoveDuplicateVertex(*myMesh);
         tri::Clean<MyMesh>::RemoveUnreferencedVertex(*myMesh);
 		tri::UpdateBounding<MyMesh>::Box(*myMesh);
 		tri::UpdateNormal<MyMesh>::PerVertex(*myMesh);

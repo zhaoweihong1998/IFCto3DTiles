@@ -41,7 +41,7 @@ private:
 typedef tri::BasicVertexPair<MyVertex>  VertexPair;
 
 
-class MyEdge : public Edge<MyUsedTypes, edge::VertexRef> {};
+class MyEdge : public Edge<MyUsedTypes, vertex::Mark,edge::VertexRef,edge::BitFlags, edge::EEAdj> {};
 
 
 class MyFace : public Face < MyUsedTypes,
@@ -51,7 +51,12 @@ class MyFace : public Face < MyUsedTypes,
     face::Normal3f,
     face::WedgeRealNormal3f,
     face::VertexRef,
-    face::BitFlags > {};
+    face::BitFlags > {
+public:
+    float area() {
+        return vcg::DoubleArea(*this);
+    }
+};
 
 class MyMesh : public tri::TriMesh<
     vector<MyVertex>,

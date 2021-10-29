@@ -12,15 +12,20 @@ struct Option
 	int Method;
 	int nThreads;
 	bool detach;
+	bool simplify;
+	float simplifyTarget;
 	Option() {
 		MaxMeshPerNode = 800;
 		Level = 5;
 		Filename = "";
 		Binary = true;
-		Log = true;
+		Log = false;
 		OutputDir = "output";
 		Method = 3;
 		nThreads = 8;
+
 		detach = false;
+		simplify = false;
+		simplifyTarget = 0.5;
 	}
 };

@@ -64,6 +64,10 @@ void main(int argc, const char* argv[]){
                 op.Filename = argv[++i];
             }
         }
+        else if (!strcmp(argv[i], "--help") || !strcmp(argv[i], "-help") ||
+            !strcmp(argv[i], "-h")) {
+            usage();
+        }
         else if (!strcmp(argv[i], "--maxDepth") || !strcmp(argv[i], "-maxDepth")) {
             if (i + 1 == argc) {
                 usage("missing value after --maxDepth argument");
@@ -137,9 +141,29 @@ void main(int argc, const char* argv[]){
                 s >> op.Method;
             }
         }
-        else if (!strcmp(argv[i], "--help") || !strcmp(argv[i], "-help") ||
-            !strcmp(argv[i], "-h")) {
-            usage();
+        else if (!strcmp(argv[i], "--simplify") || !strcmp(argv[i], "-simplify")) {
+            if (i + 1 == argc) {
+                usage("missing value after --simplify argument");
+            }
+            else {
+                if (!strcmp(argv[i + 1], "true")) {
+                    op.simplify = true;
+                }
+                else {
+                    op.simplify = false;
+                }
+                ++i;
+            }
+        }
+        else if (!strcmp(argv[i], "--simplifyTarget") || !strcmp(argv[i], "-simplifyTarget")) {
+        if (i + 1 == argc) {
+            usage("missing value after --simplifyTarget argument");
+        }
+        else {
+            std::stringstream s;
+            s << argv[++i];
+            s >> op.simplifyTarget;
+        }
         }
         else {
             string msg = "unkonwn option " + string(argv[i]);

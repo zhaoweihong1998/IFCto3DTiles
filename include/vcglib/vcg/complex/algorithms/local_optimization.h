@@ -212,6 +212,7 @@ public:
 			{
         if(h.size()> m.SimplexNumber()*HeapSimplexRatio )  ClearHeap();
 				std::pop_heap(h.begin(),h.end());
+        if (h.empty())break;
         LocModType  *locMod   = h.back().locModPtr;
 				currMetric=h.back().pri;
         h.pop_back();

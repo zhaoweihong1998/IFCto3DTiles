@@ -17,6 +17,8 @@ My3DTilesExporter::My3DTilesExporter(const Option& op):
 	batch_id = 0;
 	MaxVolume = 0;
 	Distance = 0;
+	maxArea = -INFINITY;
+	minArea = INFINITY;
 }
 
 My3DTilesExporter::~My3DTilesExporter()
@@ -34,6 +36,8 @@ void My3DTilesExporter::export3DTiles()
 	}
 	createMyMesh();
 	createNodeBox();
+	if (op.simplify)simplifyMesh(&nodeMeshes);
+	if (op.Log)statistic();
 	TreeBuilder tree(*mScene, nodeMeshes,op);
 	tree.Initialize();
 	rootTile = tree.GetTilesetInfo();
@@ -43,6 +47,7 @@ void My3DTilesExporter::export3DTiles()
 }
 void My3DTilesExporter::createMyMesh()
 {
+	
 	for (int i = 0; i < mScene->mNumMeshes; ++i) {
 
 		shared_ptr<MyMesh> mesh(new MyMesh());
@@ -76,6 +81,9 @@ void My3DTilesExporter::createMyMesh()
 			(*fi).V(0) = index[m_mesh->mFaces[j].mIndices[0]];
 			(*fi).V(1) = index[m_mesh->mFaces[j].mIndices[1]];
 			(*fi).V(2) = index[m_mesh->mFaces[j].mIndices[2]];
+			float temp = (*fi).area();
+			maxArea = maxArea > temp ? maxArea : temp;
+			minArea = minArea < temp ? minArea : temp;
 			++fi;
 		}
 		if (!mesh->vert[0].normalExist)
@@ -123,7 +131,7 @@ void My3DTilesExporter::createNodeBox()
 {
 	const aiNode* rootNode = mScene->mRootNode;
 	Point4f tempPt;
-
+	
 	for (int i = 0; i < rootNode->mNumChildren; ++i) {
 		aiNode* node = rootNode->mChildren[i];
 		vector<MeshInfo> meshInfos;
@@ -162,7 +170,6 @@ void My3DTilesExporter::createNodeBox()
 					}
 					mesh->name = name;
 					mesh->batchId = batchId;
-
 					tri::UpdateBounding<MyMesh>::Box(*mesh);
 					nodeMeshes.push_back(mesh);
 				}
@@ -180,6 +187,7 @@ void My3DTilesExporter::createNodeBox()
 			}
 		}
 	}
+	
 	myMeshes.clear();
 }
 nlohmann::json My3DTilesExporter::traverseExportTileSetJson(TileInfo* tileInfo)
@@ -279,7 +287,6 @@ void My3DTilesExporter::exportTiles(TileInfo* rootTile)
 	sprintf(buffername, "%d-%d", rootTile->level, fileIdx);
 	rootTile->contentUri = std::string(buffername) + ".b3dm";
 
-
 	for (int i = 0; i < rootTile->children.size(); ++i) {
 		exportTiles(rootTile->children[i]);
 		rootTile->myMeshInfos.insert(rootTile->myMeshInfos.end(), rootTile->children[i]->myMeshInfos.begin(), rootTile->children[i]->myMeshInfos.end());
@@ -292,7 +299,7 @@ void My3DTilesExporter::exportTiles(TileInfo* rootTile)
 	rootTile->originalVertexCount = vn_count;
 
 	if (op.Log) {
-		std::cout << "[before siftting]\t" <<"Level-Node:" <<buffername<< "\tsize of meshes:" << rootTile->myMeshInfos.size() <<"\tnumver of vertices:" << rootTile->originalVertexCount<< std::endl;
+		std::cout << "[before siftting]\t" <<"Level-Node:" <<buffername<< "\tsize of meshes:" << rootTile->myMeshInfos.size() <<"\tnumber of vertices:" << rootTile->originalVertexCount<< std::endl;
 	}
 	vector<shared_ptr<MyMesh>> temp;
 	if (rootTile->level != 1) {
@@ -322,27 +329,46 @@ void My3DTilesExporter::exportTiles(TileInfo* rootTile)
 		rootTile->originalVertexCount = vn_count;
 		std::cout << "[after siftting]\t" <<"Level-Node:" << buffername << "\tsize of meshes:" << rootTile->myMeshInfos.size() << "\tnumber of vertices:" << rootTile->originalVertexCount << std::endl;
 	}
-	simplifyMesh(rootTile, buffername);
+	rootTile->geometryError = rootTile->boundingBox->Volume();
+	writeGltf(rootTile, &rootTile->myMeshInfos, buffername, mScene);
 	if (rootTile->level != 1) {
 		rootTile->myMeshInfos.clear();
 		for (auto v : temp) {
 			rootTile->myMeshInfos.push_back(v);
 		}
 	}
-	
 	m_currentTileLevel--;
 }
-void My3DTilesExporter::simplifyMesh(TileInfo* tileInfo, char* bufferName)
+void My3DTilesExporter::simplifyMesh(vector<shared_ptr<MyMesh>>* meshes)
 {
-	MyMeshOptimizer op(&tileInfo->myMeshInfos);
-	if(false)op.DoDecemation(0.5);
-	tileInfo->geometryError = tileInfo->boundingBox->Volume();
-	vector<shared_ptr<MyMesh>>* meshes = op.GetMergeMeshInfos();
-	writeGltf(tileInfo, meshes, bufferName, mScene);
+	MyMeshOptimizer optimiazer(meshes);
+	optimiazer.DoDecemation(op.simplifyTarget, minArea + (maxArea - minArea) * pow(0.8, m_currentTileLevel));
 }
 void My3DTilesExporter::writeGltf(TileInfo* tileInfo, std::vector<shared_ptr<MyMesh>>* meshes, char* bufferName,const aiScene* mScene)
 {
 	 MyGltfExporter exporter(meshes, bufferName, mScene, op.Binary,this->io);
 	 exporter.constructAsset();
 	 exporter.write();
+}
+void My3DTilesExporter::statistic() {
+	vector<double> counter;
+	for (auto& mesh : nodeMeshes) {
+		for (auto& face : mesh->face) {
+			if (face.IsD())continue;
+			double temp = face.area() / 2;
+			counter.push_back(temp);
+		}
+	}
+	nlohmann::json faceArea = nlohmann::json({});
+	string name = op.Filename.substr(op.Filename.find_last_of('\\') + 1);
+	name = name.substr(0, name.find_last_of('.'));
+	faceArea["model"] = name;
+	faceArea["data"] = counter;
+	faceArea["maxArea"] = maxArea / 2.0;
+	faceArea["minArea"] = minArea / 2.0;
+	name = name + ".json";
+	name = ".\\output\\" + name;
+	char* filepath = (char*)name.c_str();
+	std::ofstream file(filepath);
+	file << faceArea;
 }
