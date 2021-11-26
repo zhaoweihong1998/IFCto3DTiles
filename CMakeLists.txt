@@ -35,9 +35,9 @@ target_compile_definitions(3DTiles PUBLIC TDTILE_EXPORT)
 # set_target_properties(3DTiles PROPERTIES COMPILE_FLAGS ${BUILD_FLAGS})
 
 
-add_executable(IfcTo3DTiles ${app_src_dirs})
-target_include_directories(IfcTo3DTiles PUBLIC ${PROJECT_SOURCE_DIR}/lib)
-target_link_libraries(IfcTo3DTiles 3DTiles)
+add_library(MyIfc ${app_src_dirs})
+target_include_directories(MyIfc PUBLIC ${PROJECT_SOURCE_DIR}/lib)
+target_link_libraries(MyIfc 3DTiles)
 #target_compile_definitions(test PUBLIC openmp)
 # set(BUILD_FLAGS "/DTDTILE_EXPORT" )
 # set_target_properties(test PROPERTIES COMPILE_FLAGS ${BUILD_FLAGS})

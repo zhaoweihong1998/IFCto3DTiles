@@ -377,6 +377,7 @@ void My3DTilesExporter::writeGltf(TileInfo* tileInfo, std::vector<shared_ptr<MyM
 			tempMeshes.push_back(nodeMeshes[index]);
 		}
 	}
+	bufferName = (char*)(op.OutputDir + "\\" + string(bufferName)).c_str();
 	 MyGltfExporter exporter(&tempMeshes, bufferName, mScene, op.Binary,boxs,this->io);
 	 exporter.constructAsset();
 	 exporter.write();
@@ -399,7 +400,7 @@ void My3DTilesExporter::info() {
 	faceArea["maxArea"] = maxArea / 2.0;
 	faceArea["minArea"] = minArea / 2.0;*/
 	name = name + ".json";
-	name = ".\\output\\" + name;
+	name = op.OutputDir+"\\"+ name;
 	char* filepath = (char*)name.c_str();
 	std::ofstream file(filepath);
 	file << scene;

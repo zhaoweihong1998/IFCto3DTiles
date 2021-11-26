@@ -576,12 +576,7 @@ void MyGltfExporter::constructAsset()
 }
 void MyGltfExporter::write()
 {
-    string filename = bufferName;
-
-    //string dir = prefix + "\\output\\" + filename;
-    string dir = "output\\"+filename;
-    /*cout << dir << endl;*/
-    //string dir = bufferName;
+    string dir = bufferName;
 	AssetWriter writer(*mAsset);
 	if (setBinary) {
         dir += ".b3dm";
