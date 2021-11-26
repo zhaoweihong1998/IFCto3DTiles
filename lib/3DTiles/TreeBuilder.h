@@ -192,13 +192,13 @@ private:
 class TreeBuilder
 {
 public:
-	TreeBuilder(const aiScene& mScene, vector<shared_ptr<MyMesh>>& meshes, const Option& op);
+	TreeBuilder(vector<shared_ptr<MyMesh>>& meshes, const Option& op);
 	~TreeBuilder(){}
 	void Initialize();
 	TileInfo* GetTilesetInfo();
 private:
 	shared_ptr<BVHAccelNode> root;
-	const aiScene* mScene;
+	//const aiScene* mScene;
 	vector<shared_ptr<MyMesh>>* m_meshes;
 	int m_correntDepth;
 	int m_treeDepth;

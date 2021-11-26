@@ -12,10 +12,10 @@ inline bool myCompareZ(shared_ptr<MyMesh>& a, shared_ptr<MyMesh>& b) {
 }
 
 
-TreeBuilder::TreeBuilder(const aiScene& mScene, vector<shared_ptr<MyMesh>>& meshes, const Option& op):
+TreeBuilder::TreeBuilder(vector<shared_ptr<MyMesh>>& meshes, const Option& op):
 	op(op)
 {
-	this->mScene = &mScene;
+	//this->mScene = &mScene;
 	this->m_meshes = &meshes;
 	this->m_pTileRoot = new TileInfo();
 	this->BigMeshes = new TileInfo();
@@ -375,8 +375,8 @@ shared_ptr<BVHAccelNode> BVHAccel::recursiveBuild(std::vector<PrimitiveInfo>& pr
 					float recordExtraMinCost = 1.0;
 					int recordExtraDim = -1;
 					int recordExtraSplit = INT_MIN;
-					constexpr int nBuckets = 24;
-					for (int i = 0; i < 3; i++) {
+					constexpr int nBuckets = 12;
+					for (int k = 0; k < 3; k++) {
 						struct BucketInfo
 						{
 							int count = 0;
@@ -403,7 +403,7 @@ shared_ptr<BVHAccelNode> BVHAccel::recursiveBuild(std::vector<PrimitiveInfo>& pr
 								b1.Add(buckets[j].bounds);
 								count1 += buckets[j].count;
 							}
-							cost[i] = 0.125f*i+(count0*b0.Volume() + count1*b1.Volume()) / bounds.Volume();
+							cost[i] = 0.125f*pow(k,8)+(count0*b0.Volume() + count1*b1.Volume()) / bounds.Volume();
 							extraCost[i] = (b0.Volume() + b1.Volume()) / bounds.Volume();
 							v1[i] = b0.Volume();
 							v2[i] = b1.Volume();

@@ -14,8 +14,9 @@ struct Option
 	bool detach;
 	bool simplify;
 	float simplifyTarget;
+	bool merged;
 	Option() {
-		MaxMeshPerNode = 800;
+		MaxMeshPerNode = 100;
 		Level = 5;
 		Filename = "";
 		Binary = true;
@@ -27,5 +28,6 @@ struct Option
 		detach = false;
 		simplify = false;
 		simplifyTarget = 0.5;
+		merged = false;
 	}
 };

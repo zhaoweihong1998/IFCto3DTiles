@@ -32,7 +32,7 @@ private:
 	bool setBinary;
 	map<std::string, unsigned int> mTexturesByPath;
     glTF2Exporter* exporter;
-
+	unordered_map<unsigned int, vector<float>> boxs;
 private:
 	void exportMeshes();
 
@@ -50,7 +50,7 @@ private:
 
 	//void MergeMeshes();
 public:
-	MyGltfExporter(vector<shared_ptr<MyMesh>>* meshes, char* buffername, const aiScene* mScene, bool setBinary, IOSystem* io=0);
+	MyGltfExporter(vector<shared_ptr<MyMesh>>* meshes, char* buffername, const aiScene* mScene, bool setBinary, unordered_map<unsigned int, vector<float>>& boxs,IOSystem* io=0);
 	void constructAsset();
 	void write();
 };

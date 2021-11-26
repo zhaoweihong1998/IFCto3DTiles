@@ -13,7 +13,6 @@ aux_source_directory(${PROJECT_SOURCE_DIR}/src/Application app_src_dirs)
 aux_source_directory(${PROJECT_SOURCE_DIR}/src/gltfHandler gltfHandler_src_dirs) 
 
 add_subdirectory(deps/assimp) # 指定 编译子目录
-
 set_target_properties(assimp PROPERTIES
       RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
       LIBRARY_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}
@@ -28,7 +27,7 @@ target_compile_definitions(gltfHandler PUBLIC RAPIDJSON_HAS_STDSTRING=1 GLTF_EXP
 # set_target_properties(gltfHandler PROPERTIES COMPILE_FLAGS ${BUILD_FLAGS})
 
 add_library(3DTiles SHARED ${3dtiles_src_dirs}) # 指定可执行文件名及源码
-target_include_directories(3DTiles PUBLIC ${PROJECT_SOURCE_DIR}/lib/3DTiles ${PROJECT_SOURCE_DIR}/lib/gltfHandler ${PROJECT_SOURCE_DIR}/include/nlohmann  ${PROJECT_SOURCE_DIR}/include ${PROJECT_SOURCE_DIR}/deps/assimp/include)
+target_include_directories(3DTiles PUBLIC ${PROJECT_SOURCE_DIR}/lib/3DTiles ${PROJECT_SOURCE_DIR}/lib/gltfHandler ${PROJECT_SOURCE_DIR}/include/nlohmann  ${PROJECT_SOURCE_DIR}/include ${PROJECT_SOURCE_DIR}/deps/assimp/include ${PROJECT_SOURCE_DIR}/include)
 
 target_link_libraries(3DTiles assimp gltfHandler) # 链接外部库
 target_compile_definitions(3DTiles PUBLIC TDTILE_EXPORT)

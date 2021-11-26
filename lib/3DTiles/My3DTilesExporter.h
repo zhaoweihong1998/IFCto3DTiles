@@ -24,6 +24,7 @@ private:
 	Assimp::IOSystem* io;
 	vector<shared_ptr<MyMesh>> myMeshes;
 	vector<shared_ptr<MyMesh>> nodeMeshes;
+	vector<shared_ptr<MyMesh>> MergedMeshes;
 	TileInfo* rootTile;
 	const aiScene* mScene;
 	int m_currentTileLevel;
@@ -37,18 +38,19 @@ private:
 	double maxArea;
 	double minArea;
 	Box3f* sceneBox;
+	struct nodeInfo* nInfo;
 public:
 	My3DTilesExporter(const Option& op);
 	~My3DTilesExporter();
 	void createMyMesh();
 	void createNodeBox();
 	void export3DTiles();
-	void getNodeMeshInfos(aiNode* node, vector<MeshInfo>& meshInfos, unsigned int& batch_id, Matrix44f* parentMatrix = nullptr);
+	void getNodeMeshInfos(aiNode* node, vector<MeshInfo>& meshInfos, unsigned int& batch_id, struct nodeInfo* ninfo, Matrix44f* parentMatrix = nullptr);
 	nlohmann::json traverseExportTileSetJson(TileInfo* tileInfo);
 	void export3DTilesset(TileInfo* rootTile);
 	void exportTiles(TileInfo* rootTile);
 	void simplifyMesh(vector<shared_ptr<MyMesh>>* meshes);
 	void writeGltf(TileInfo* tileInfo, std::vector<shared_ptr<MyMesh>>* meshes, char* bufferName,const aiScene* mScene);
-	void statistic();
+	void info();
+	nlohmann::json GetInfo(struct nodeInfo* ninfo);
 };
-

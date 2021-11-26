@@ -90,11 +90,11 @@ protected:
     const aiImporterDesc* GetInfo () const;
 
     // --------------------
-    void SetupProperties(const Importer* pImp);
+    void SetupProperties(const Importer* pImp);                                                                                                                                                                                                 
 
     // --------------------
     void InternReadFile( const std::string& pFile,
-        aiScene* pScene,
+        aiScene* pScene,                                                                                                                                                                            
         IOSystem* pIOHandler
     );
 

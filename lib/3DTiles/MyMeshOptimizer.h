@@ -1,6 +1,5 @@
 #pragma once
 #include "MyMesh.h"
-
 struct MergeMeshInfo {
 	vector<shared_ptr< MyMesh>> meshes;
 	unsigned int material;

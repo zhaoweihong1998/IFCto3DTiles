@@ -90,9 +90,8 @@ void MyGltfExporter::exportMeshes()
         Mesh::Primitive& p = m->primitives.back();
         m->name = name;
         p.material = mAsset->materials.Get(idx_mesh);
-        
+        p.myId = mesh->id;
         p.batchId = mesh->batchId;
-        
         float* pos = (float*)malloc(sizeof(float) * mesh->vn * 3);
         float* ind_pos = pos;
         /*unsigned int* bacthID = (unsigned int*)malloc(sizeof(unsigned int) * mesh.myMesh->vn);
@@ -470,12 +469,13 @@ void MyGltfExporter::exportMaterial()
     
 }
 
-MyGltfExporter::MyGltfExporter(vector<shared_ptr<MyMesh>>* meshes, char* buffername, const aiScene* mScene,bool setBinary, IOSystem* io)
+MyGltfExporter::MyGltfExporter(vector<shared_ptr<MyMesh>>* meshes, char* buffername, const aiScene* mScene,bool setBinary, unordered_map<unsigned int, vector<float>>& boxs, IOSystem* io)
 {
 	this->meshes = meshes;
 	this->bufferName = buffername;
 	this->setBinary = setBinary;
 	this->mScene = mScene;
+    this->boxs = boxs;
 	mAsset = new Asset(io);
     if (setBinary) {
         mAsset->SetAsBinary();
@@ -507,6 +507,14 @@ void MyGltfExporter::constructAsset()
         string id = "node_" + to_string(v.first);
         Ref<Node> node = mAsset->nodes.Create(id);
         node->name = id;
+        node->min.value[0] = boxs[v.first][0];
+        node->min.value[1] = boxs[v.first][1];
+        node->min.value[2] = boxs[v.first][2];
+        node->max.value[0] = boxs[v.first][3];
+        node->max.value[1] = boxs[v.first][4];
+        node->max.value[2] = boxs[v.first][5];
+        node->max.isPresent = true;
+        node->min.isPresent = true;
         for (auto i : v.second) {
             node->meshes.push_back(mAsset->meshes.Get(i));
         }
@@ -566,8 +574,6 @@ void MyGltfExporter::constructAsset()
     mAsset->asset.version = "2.0";
     mAsset->scene = scene;
 }
-
-
 void MyGltfExporter::write()
 {
     string filename = bufferName;

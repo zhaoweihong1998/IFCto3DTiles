@@ -19,6 +19,7 @@ My3DTilesExporter::My3DTilesExporter(const Option& op):
 	Distance = 0;
 	maxArea = -INFINITY;
 	minArea = INFINITY;
+	nInfo = new nodeInfo();
 }
 
 My3DTilesExporter::~My3DTilesExporter()
@@ -37,8 +38,9 @@ void My3DTilesExporter::export3DTiles()
 	createMyMesh();
 	createNodeBox();
 	if (op.simplify)simplifyMesh(&nodeMeshes);
-	if (op.Log)statistic();
-	TreeBuilder tree(*mScene, nodeMeshes,op);
+	info();
+	TreeBuilder tree(MergedMeshes, op);
+	//TreeBuilder tree(*mScene, nodeMeshes,op);
 	tree.Initialize();
 	rootTile = tree.GetTilesetInfo();
 	MaxVolume = rootTile->boundingBox->Volume();
@@ -94,25 +96,34 @@ void My3DTilesExporter::createMyMesh()
 
 	}
 }
-void My3DTilesExporter::getNodeMeshInfos(aiNode* node, vector<MeshInfo>& meshInfos, unsigned int& batch_id, Matrix44f* parentMatrix) {
+void My3DTilesExporter::getNodeMeshInfos(aiNode* node, vector<MeshInfo>& meshInfos, unsigned int& batch_id, struct nodeInfo* ninfo, Matrix44f* parentMatrix) {
 	Matrix44f matrix;
 	matrix.SetIdentity();
+	ninfo->name = node->mName.C_Str();
 	if (!node->mTransformation.IsIdentity()) {
 		for (int i = 0; i < 4; ++i) {
 			matrix.V()[i * 4 + 0] = node->mTransformation[i][0];
+			ninfo->transformation.push_back(node->mTransformation[i][0]);
 			matrix.V()[i * 4 + 1] = node->mTransformation[i][1];
+			ninfo->transformation.push_back(node->mTransformation[i][1]);
 			matrix.V()[i * 4 + 2] = node->mTransformation[i][2];
+			ninfo->transformation.push_back(node->mTransformation[i][2]);
 			matrix.V()[i * 4 + 3] = node->mTransformation[i][3];
+			ninfo->transformation.push_back(node->mTransformation[i][3]);
 		}
 	}
-
 	if (parentMatrix != nullptr) {
 		matrix = (*parentMatrix) * matrix;
 	}
-
 	if (node->mNumChildren > 0) {
+		ninfo->children.resize(node->mNumChildren);
 		for (int i = 0; i < node->mNumChildren; ++i) {
-			getNodeMeshInfos(node->mChildren[i], meshInfos, batch_id, &matrix);
+			ninfo->children[i] = new nodeInfo();
+			ninfo->children[i]->parent = ninfo;
+			string id = ninfo->id + "_";
+			id = id + to_string(i);
+			ninfo->children[i]->id = id;
+			getNodeMeshInfos(node->mChildren[i], meshInfos, batch_id, ninfo->children[i],&matrix);
 		}
 	}
 
@@ -123,6 +134,7 @@ void My3DTilesExporter::getNodeMeshInfos(aiNode* node, vector<MeshInfo>& meshInf
 		meshInfo.mNumMeshes = node->mNumMeshes;
 		meshInfo.batchId = batch_id;
 		meshInfo.name = (string)node->mName.C_Str();
+		meshInfo.myInfo = ninfo;
 		meshInfos.push_back(meshInfo);
 		batch_id++;
 	}
@@ -135,19 +147,20 @@ void My3DTilesExporter::createNodeBox()
 	for (int i = 0; i < rootNode->mNumChildren; ++i) {
 		aiNode* node = rootNode->mChildren[i];
 		vector<MeshInfo> meshInfos;
-		getNodeMeshInfos(node, meshInfos, batch_id);
+		getNodeMeshInfos(node, meshInfos, batch_id, nInfo);
 		for (int j = 0; j < meshInfos.size(); j++) {
 
 			unsigned int  batchId = meshInfos[j].batchId;
+			struct nodeInfo* ninfo = meshInfos[j].myInfo;
 			string name = meshInfos[j].name;
-
+			string id = string("N")+ninfo->id;
+			id = id + "_M_";
+			vector<shared_ptr<MyMesh>> tempMeshes;
+			shared_ptr<MyMesh> mergedMesh(new MyMesh());
 			if (meshInfos[j].matrix != nullptr) {
 				Matrix44f matrix = *meshInfos[j].matrix;
 				Matrix44f temp_ = Inverse(matrix).transpose();
 				Matrix33f normalMatrix = Matrix33f(temp_, 3);
-
-				MyMesh* mergeNode = new MyMesh();
-
 				for (int k = 0; k < meshInfos[j].mNumMeshes; ++k) {
 					shared_ptr<MyMesh> mesh_ = myMeshes[meshInfos[j].meshIndex[k]];
 					shared_ptr<MyMesh> mesh(new MyMesh());
@@ -170,8 +183,12 @@ void My3DTilesExporter::createNodeBox()
 					}
 					mesh->name = name;
 					mesh->batchId = batchId;
+					mesh->id = id + to_string(k);
+					ninfo->meshes.push_back(id + to_string(k));
 					tri::UpdateBounding<MyMesh>::Box(*mesh);
+					mergedMesh->originMesh.push_back(nodeMeshes.size());
 					nodeMeshes.push_back(mesh);
+					tempMeshes.push_back(mesh);
 				}
 			}
 			else {
@@ -179,15 +196,21 @@ void My3DTilesExporter::createNodeBox()
 					shared_ptr<MyMesh> mesh_ = myMeshes[meshInfos[i].meshIndex[k]];
 					shared_ptr<MyMesh> mesh(new MyMesh());
 					MyMesh::ConcatMyMesh(mesh, mesh_);
-					vector<MyVertex>::iterator it;
+					mesh->name = name + to_string(k);
+					mesh->batchId = batchId;
+					ninfo->meshes.push_back(mesh->name);
 					tri::UpdateBounding<MyMesh>::Box(*mesh);
+					mergedMesh->originMesh.push_back(nodeMeshes.size());
 					nodeMeshes.push_back(mesh);
+					tempMeshes.push_back(mesh);
 				}
-
 			}
+			MyMesh::MergeMyMesh(mergedMesh, tempMeshes);
+			tri::UpdateBounding<MyMesh>::Box(*mergedMesh);
+			MergedMeshes.push_back(mergedMesh);
+			ninfo->box = &mergedMesh->bbox;
 		}
 	}
-	
 	myMeshes.clear();
 }
 nlohmann::json My3DTilesExporter::traverseExportTileSetJson(TileInfo* tileInfo)
@@ -346,29 +369,78 @@ void My3DTilesExporter::simplifyMesh(vector<shared_ptr<MyMesh>>* meshes)
 }
 void My3DTilesExporter::writeGltf(TileInfo* tileInfo, std::vector<shared_ptr<MyMesh>>* meshes, char* bufferName,const aiScene* mScene)
 {
-	 MyGltfExporter exporter(meshes, bufferName, mScene, op.Binary,this->io);
+	vector<shared_ptr<MyMesh >> tempMeshes;
+	unordered_map<unsigned int,vector<float>> boxs;
+	for (auto mesh : *meshes) {
+		boxs[nodeMeshes[mesh->originMesh[0]]->batchId] = { mesh->bbox.min[0],mesh->bbox.min[1],mesh->bbox.min[2],mesh->bbox.max[0],mesh->bbox.max[1],mesh->bbox.max[2] };
+		for (unsigned int index : mesh->originMesh) {
+			tempMeshes.push_back(nodeMeshes[index]);
+		}
+	}
+	 MyGltfExporter exporter(&tempMeshes, bufferName, mScene, op.Binary,boxs,this->io);
 	 exporter.constructAsset();
 	 exporter.write();
 }
-void My3DTilesExporter::statistic() {
-	vector<double> counter;
+void My3DTilesExporter::info() {
+	/*vector<double> counter;
 	for (auto& mesh : nodeMeshes) {
 		for (auto& face : mesh->face) {
 			if (face.IsD())continue;
 			double temp = face.area() / 2;
 			counter.push_back(temp);
 		}
-	}
-	nlohmann::json faceArea = nlohmann::json({});
+	}*/
+	nlohmann::json scene = nlohmann::json({});
 	string name = op.Filename.substr(op.Filename.find_last_of('\\') + 1);
 	name = name.substr(0, name.find_last_of('.'));
-	faceArea["model"] = name;
-	faceArea["data"] = counter;
+	scene["name"] = name;
+	scene["scene"] = GetInfo(nInfo);
+	/*faceArea["data"] = counter;
 	faceArea["maxArea"] = maxArea / 2.0;
-	faceArea["minArea"] = minArea / 2.0;
+	faceArea["minArea"] = minArea / 2.0;*/
 	name = name + ".json";
 	name = ".\\output\\" + name;
 	char* filepath = (char*)name.c_str();
 	std::ofstream file(filepath);
-	file << faceArea;
+	file << scene;
+}
+nlohmann::json My3DTilesExporter::GetInfo(struct nodeInfo* ninfo) {
+	nlohmann::json info = nlohmann::json({});
+	info["name"] = ninfo->name;
+	
+	if (ninfo->transformation.size() > 0) {
+		nlohmann::json Transform = nlohmann::json::array();
+		for (auto data : ninfo->transformation) {
+			Transform.push_back(data);
+		}
+		info["transformation"] = Transform;
+	}
+	
+	/*if (ninfo->box != nullptr) {
+		nlohmann::json min = nlohmann::json::array();
+		nlohmann::json max = nlohmann::json::array();
+		min.push_back(ninfo->box->min[0]);
+		min.push_back(ninfo->box->min[1]);
+		min.push_back(ninfo->box->min[2]);
+		max.push_back(ninfo->box->max[0]);
+		max.push_back(ninfo->box->max[1]);
+		max.push_back(ninfo->box->max[2]);
+		info["boundingBox"]["min"] = min;
+		info["boundingBox"]["max"] = max;
+	}*/
+	if (ninfo->children.size() > 0) {
+		nlohmann::json children = nlohmann::json::array();
+		for (auto child : ninfo->children) {
+			children.push_back(GetInfo(child));
+		}
+		info["children"] = children;
+	}
+	if (ninfo->meshes.size() > 0) {
+		nlohmann::json meshes = nlohmann::json::array();
+		for (auto mesh : ninfo->meshes) {
+			meshes.push_back(mesh);
+		}
+		info["meshes"] = meshes;
+	}
+	return info;
 }
