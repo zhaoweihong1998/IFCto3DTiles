@@ -32,7 +32,7 @@ struct Option
 		Filename = "";
 		Binary = false;
 		Log = true;
-		OutputDir = ".\\output\\";
+		OutputDir = "./output/";
 		Method = 3;
 		nThreads = 8;
 		detach = false;
@@ -50,7 +50,7 @@ struct Option
 
 	void makedir(string name) {
 		std::string pre = get_current_directory();
-		pre += "\\";
+		pre += "/";
 		pre += name;
 		if (access(pre.c_str(), 0)) {
 			std::string command = "mkdir " + pre;

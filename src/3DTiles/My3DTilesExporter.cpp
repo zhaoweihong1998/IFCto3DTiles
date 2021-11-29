@@ -9,7 +9,7 @@ My3DTilesExporter::My3DTilesExporter(Option& op):
 {
 	importer = new Assimp::Importer();
 	io = new Assimp::DefaultIOSystem();
-	this->mScene = importer->ReadFile(this->op.Filename, aiProcess_Triangulate);//aiProcess_JoinIdenticalVertices»áÓ°Ïì·¨ÏßÖÊÁ¿
+	this->mScene = importer->ReadFile(this->op.Filename, aiProcess_Triangulate);//aiProcess_JoinIdenticalVerticesï¿½ï¿½Ó°ï¿½ì·¨ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 	rootTile = nullptr;
 	myMeshes.clear();
 	m_currentTileLevel = 0;
@@ -386,11 +386,11 @@ void My3DTilesExporter::writeGltf(TileInfo* tileInfo, std::vector<shared_ptr<MyM
 void My3DTilesExporter::info() {
 	
 	nlohmann::json scene = nlohmann::json({});
-	string name = op.Filename.substr(op.Filename.find_last_of('\\') + 1);
+	string name = op.Filename.substr(op.Filename.find_last_of('/') + 1);
 	name = name.substr(0, name.find_last_of('.'));
 
 	op.makedir(name);
-	op.OutputDir = ".\\"+name+"\\";
+	op.OutputDir = "./"+name+"/";
 
 	scene["name"] = name;
 	scene["scene"] = GetInfo(nInfo);

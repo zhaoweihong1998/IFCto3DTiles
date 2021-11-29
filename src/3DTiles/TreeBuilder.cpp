@@ -1,6 +1,14 @@
 #include "TreeBuilder.h"
 #include <omp.h>
 
+#if defined(_MSC_VER)
+#define RBS _Bit_scan_reverse
+#elif defined(__unix__)
+#define RBS __builtin_clz
+#else
+#endif
+
+
 inline bool myCompareX(shared_ptr<MyMesh>& a, shared_ptr<MyMesh>& b) {
 	return a->bbox.Center().V()[0] < b->bbox.Center().V()[0];
 }
@@ -733,7 +741,7 @@ KDTreeAccel::KDTreeAccel(TileInfo* rootTile, int isectCost, int traversalCost,
 		primitives.push_back(rootTile->myMeshInfos[i]);
 	}
 	if (_maxDepth <= 0)
-		this->maxDepth = std::round(8 + 1.3f * _Bit_scan_reverse(primitives.size()));
+		this->maxDepth = std::round(8 + 1.3f * RBS(primitives.size()));
 	else this->maxDepth = _maxDepth;
 	bounds.min.X() = bounds.min.Y() = bounds.min.Z() = INFINITY;
 	bounds.max.X() = bounds.max.Y() = bounds.max.Z() = -INFINITY;
