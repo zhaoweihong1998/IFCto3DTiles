@@ -4,7 +4,7 @@ bool myCompareDim(shared_ptr<MyMesh>& a, shared_ptr<MyMesh>& b) {
 	return a->bbox.Diag() < b->bbox.Diag();
 }
 
-My3DTilesExporter::My3DTilesExporter(const Option& op):
+My3DTilesExporter::My3DTilesExporter(Option& op):
 	op(op)
 {
 	importer = new Assimp::Importer();
@@ -290,7 +290,7 @@ void My3DTilesExporter::export3DTilesset(TileInfo* rootTile)
 	dummyTransform.push_back(0);
 	dummyTransform.push_back(-1);
 	tilesetJson["root"]["transform"] = dummyTransform;
-	char* filepath = ".\\output\\tileset.json";
+	string filepath = op.OutputDir+"tileset.json";
 	std::ofstream file(filepath);
 	file << tilesetJson;
 }
@@ -377,30 +377,26 @@ void My3DTilesExporter::writeGltf(TileInfo* tileInfo, std::vector<shared_ptr<MyM
 			tempMeshes.push_back(nodeMeshes[index]);
 		}
 	}
-	bufferName = (char*)(op.OutputDir + "\\" + string(bufferName)).c_str();
-	 MyGltfExporter exporter(&tempMeshes, bufferName, mScene, op.Binary,boxs,this->io);
-	 exporter.constructAsset();
-	 exporter.write();
+	string path = bufferName;
+	path = op.OutputDir + path;
+	MyGltfExporter exporter(&tempMeshes, (char*)path.c_str(), mScene, op.Binary, boxs, this->io);
+	exporter.constructAsset();
+	exporter.write();
 }
 void My3DTilesExporter::info() {
-	/*vector<double> counter;
-	for (auto& mesh : nodeMeshes) {
-		for (auto& face : mesh->face) {
-			if (face.IsD())continue;
-			double temp = face.area() / 2;
-			counter.push_back(temp);
-		}
-	}*/
+	
 	nlohmann::json scene = nlohmann::json({});
 	string name = op.Filename.substr(op.Filename.find_last_of('\\') + 1);
 	name = name.substr(0, name.find_last_of('.'));
+
+	op.makedir(name);
+	op.OutputDir = ".\\"+name+"\\";
+
 	scene["name"] = name;
 	scene["scene"] = GetInfo(nInfo);
-	/*faceArea["data"] = counter;
-	faceArea["maxArea"] = maxArea / 2.0;
-	faceArea["minArea"] = minArea / 2.0;*/
+	
 	name = name + ".json";
-	name = op.OutputDir+"\\"+ name;
+	name = op.OutputDir + name;
 	char* filepath = (char*)name.c_str();
 	std::ofstream file(filepath);
 	file << scene;

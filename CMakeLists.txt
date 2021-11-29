@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.20)
 project(3DTiles VERSION 2.0.0)
 
-include_directories(${PROJECT_SOURCE_DIR}/include/vcglib ${PROJECT_SOURCE_DIR}/include/vcglib/eigenlib  ${PROJECT_SOURCE_DIR}/include)
+include_directories(${PROJECT_SOURCE_DIR}/include/vcglib ${PROJECT_SOURCE_DIR}/include/vcglib/eigenlib  ${PROJECT_SOURCE_DIR}/include ${PROJECT_SOURCE_DIR}/include/jni ${PROJECT_SOURCE_DIR}/include/jni/win32 ${PROJECT_SOURCE_DIR}/include/jni/win32/bridge)
 
 # 指定输出目录
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/lib)

@@ -1,15 +1,6 @@
 #include "My3DTilesExporter.h"
-#include <sstream>
+#include <MyIfc.h>
 
-#if defined(_MSC_VER)
-#include <direct.h>
-#include <io.h>
-#define GetCurrentDir _getcwd
-#elif defined(__unix__)
-#include <unistd.h>
-#define GetCurrentDir getcwd
-#else
-#endif
 
 static void usage(const char* msg = nullptr) {
     if (msg)
@@ -35,13 +26,7 @@ options:
     exit(msg ? 1 : 0);
 }
 
-std::string get_current_directory()
-{
-    char buff[250];
-    GetCurrentDir(buff, 250);
-    string current_working_directory(buff);
-    return current_working_directory;
-}
+
 
 enum class Format
 {
@@ -93,7 +78,12 @@ public:
         op.Log = flag;
     }
     void setOutputPath(string path) {
-        op.OutputDir = path;
+        op.makedir(path);
+        op.OutputDir = ".\\"+path+"\\";
+    }
+
+    void setFilename(string name) {
+        op.Filename = name;
     }
 private:
     Option op;
@@ -108,3 +98,26 @@ MyIfc::~MyIfc()
 {
 
 }
+
+extern "C"
+JNIEXPORT jlong JNICALL Java_MyIfc_createNativeIfc
+(JNIEnv*, jobject) {
+    jlong result;
+    result = (jlong) new MyIfc();
+    return result;
+}
+
+extern "C"
+JNIEXPORT void JNICALL Java_MyIfc_readFile
+(JNIEnv* env, jobject obj, jlong thiz, jstring filename) {
+    const char* name = env->GetStringUTFChars(filename, NULL);
+    ((MyIfc*)thiz)->setFilename(name);
+}
+
+extern "C"
+JNIEXPORT void JNICALL Java_MyIfc_to3DTiles
+(JNIEnv* env, jobject obj, jlong thiz) {
+    ((MyIfc*)thiz)->convertTo3DTiles();
+}
+
+

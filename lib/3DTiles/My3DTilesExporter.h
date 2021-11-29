@@ -34,13 +34,13 @@ private:
 	float Distance;
 	unsigned int batch_id;
 	Assimp::Importer* importer;
-	const Option op;
+	Option op;
 	double maxArea;
 	double minArea;
 	Box3f* sceneBox;
 	struct nodeInfo* nInfo;
 public:
-	My3DTilesExporter(const Option& op);
+	My3DTilesExporter(Option& op);
 	~My3DTilesExporter();
 	void createMyMesh();
 	void createNodeBox();

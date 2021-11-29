@@ -751,7 +751,6 @@ namespace glTF2 {
             Ref<Buffer> b = mAsset.buffers.Get(i);
 
             std::string binPath = b->GetURI();
-            binPath = "output\\" + binPath;
             std::unique_ptr<IOStream> binOutFile(mAsset.OpenFile(binPath, "wb", true));
 
             if (binOutFile == 0) {
