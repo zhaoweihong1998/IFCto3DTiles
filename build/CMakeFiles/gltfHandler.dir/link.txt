@@ -1,1 +1,0 @@
-/usr/bin/c++ -fPIC -O3 -DNDEBUG  -shared -Wl,-soname,libgltfHandler.so -o lib/libgltfHandler.so CMakeFiles/gltfHandler.dir/src/gltfHandler/MyGltfExporter.cpp.o  -Wl,-rpath,/home/zhaoweihong/3DTiles/build/lib lib/libassimp.so.5.0.1 lib/libzlibstatic.a /usr/lib/x86_64-linux-gnu/librt.so 
