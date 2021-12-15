@@ -4,7 +4,7 @@
 #include <assimp/Importer.hpp>
 #include <assimp/DefaultIOSystem.h>
 #include <json.hpp>
-
+#include "MyMeshOptimizer.h"
 #include <MyGltfExporter.h>
 
 #if defined(_MSC_VER)
@@ -39,6 +39,7 @@ private:
 	double minArea;
 	Box3f* sceneBox;
 	struct nodeInfo* nInfo;
+	MyMeshOptimizer optimazer;
 public:
 	My3DTilesExporter(Option& op);
 	~My3DTilesExporter();

@@ -156,6 +156,66 @@ void MyMeshOptimizer::DoDecemation(float targetPercentage,float area)
 	cout << "tile totalFaceCount after Decimation:" << totalFaceCount << endl;
 }
 
+void MyMeshOptimizer::DoDecamation(float targetPercentage, vector<shared_ptr<MyMesh>>* meshes) {
+	int totalFaceCount = 0;
+	for (int i = 0; i < meshes->size(); i++)
+	{
+		totalFaceCount += (*meshes)[i]->fn;
+	}
+
+
+	if (totalFaceCount == 0)
+	{
+		return;
+	}
+	int totalFaceBeforeSplit = totalFaceCount;
+	totalFaceCount = 0;
+	for (int i = 0; i < meshes->size(); ++i)
+	{
+		shared_ptr<MyMesh>  myMesh = (*meshes)[i];
+
+		vcg::LocalOptimization<MyMesh> deciSession(*myMesh, m_pParams);
+		deciSession.Init<MyTriEdgeCollapse>();
+		int targetFaceCount = myMesh->fn * targetPercentage;
+		int faceToDel = myMesh->fn - targetFaceCount;
+		deciSession.SetTargetSimplices(targetFaceCount);
+		deciSession.SetTimeBudget(0.1f);
+		while (deciSession.DoOptimization() && myMesh->fn > targetFaceCount) {
+			printf("Simplifying... %d%%\n", (int)(100 - 100 * (myMesh->fn - targetFaceCount) / (faceToDel)));
+		};
+		deciSession.Finalize<MyTriEdgeCollapse>();
+		tri::UpdateTopology<MyMesh>::FaceFace(*myMesh);
+		//tri::Clean<MyMesh>::RemoveDuplicateVertex(*myMesh);
+		tri::Clean<MyMesh>::RemoveUnreferencedVertex(*myMesh);
+		tri::UpdateBounding<MyMesh>::Box(*myMesh);
+		tri::UpdateNormal<MyMesh>::PerVertex(*myMesh);
+		tri::UpdateNormal<MyMesh>::NormalizePerVertex(*myMesh);
+		totalFaceCount += myMesh->fn;
+	}
+	cout << "tile totalFaceCount before Decimation:" << totalFaceBeforeSplit << endl;
+	cout << "tile totalFaceCount after Decimation:" << totalFaceCount << endl;
+}
+void MyMeshOptimizer::DoDecamation(float targetPercentage, shared_ptr<MyMesh> mesh) {
+	cout << "mesh totalFaceCount before Decimation:" << mesh->fn << endl;
+	vcg::LocalOptimization<MyMesh> deciSession(*mesh, m_pParams);
+	deciSession.Init<MyTriEdgeCollapse>();
+	int targetFaceCount = mesh->fn * targetPercentage;
+	int faceToDel = mesh->fn - targetFaceCount;
+	deciSession.SetTargetSimplices(targetFaceCount);
+	deciSession.SetTimeBudget(0.1f);
+	while (deciSession.DoOptimization() && mesh->fn > targetFaceCount) {
+		printf("Simplifying... %d%%\n", (int)(100 - 100 * (mesh->fn - targetFaceCount) / (faceToDel)));
+	};
+	deciSession.Finalize<MyTriEdgeCollapse>();
+	tri::UpdateTopology<MyMesh>::FaceFace(*mesh);
+	//tri::Clean<MyMesh>::RemoveDuplicateVertex(*myMesh);
+	tri::Clean<MyMesh>::RemoveUnreferencedVertex(*mesh);
+	tri::UpdateBounding<MyMesh>::Box(*mesh);
+	tri::UpdateNormal<MyMesh>::PerVertex(*mesh);
+	tri::UpdateNormal<MyMesh>::NormalizePerVertex(*mesh);
+	cout << "mesh totalFaceCount after Decimation:" << mesh->fn << endl;
+}
+
 vector<shared_ptr<MyMesh>>* MyMeshOptimizer::GetMergeMeshInfos()
 {
 	return meshes;

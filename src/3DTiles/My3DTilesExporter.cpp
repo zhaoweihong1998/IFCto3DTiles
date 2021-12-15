@@ -1,5 +1,4 @@
 #include "My3DTilesExporter.h"
-#include "MyMeshOptimizer.h"
 bool myCompareDim(shared_ptr<MyMesh>& a, shared_ptr<MyMesh>& b) {
 	return a->bbox.Diag() < b->bbox.Diag();
 }
@@ -20,6 +19,7 @@ My3DTilesExporter::My3DTilesExporter(Option& op):
 	maxArea = -INFINITY;
 	minArea = INFINITY;
 	nInfo = new nodeInfo();
+	sceneBox = nullptr;
 }
 
 My3DTilesExporter::~My3DTilesExporter()
@@ -364,8 +364,8 @@ void My3DTilesExporter::exportTiles(TileInfo* rootTile)
 }
 void My3DTilesExporter::simplifyMesh(vector<shared_ptr<MyMesh>>* meshes)
 {
-	MyMeshOptimizer optimiazer(meshes);
-	optimiazer.DoDecemation(op.simplifyTarget, minArea + (maxArea - minArea) * pow(0.8, m_currentTileLevel));
+	optimazer.setMeshes(meshes);
+	optimazer.DoDecemation(op.simplifyTarget, minArea + (maxArea - minArea) * pow(0.8, m_currentTileLevel));
 }
 void My3DTilesExporter::writeGltf(TileInfo* tileInfo, std::vector<shared_ptr<MyMesh>>* meshes, char* bufferName,const aiScene* mScene)
 {
@@ -374,6 +374,8 @@ void My3DTilesExporter::writeGltf(TileInfo* tileInfo, std::vector<shared_ptr<MyM
 	for (auto mesh : *meshes) {
 		boxs[nodeMeshes[mesh->originMesh[0]]->batchId] = { mesh->bbox.min[0],mesh->bbox.min[1],mesh->bbox.min[2],mesh->bbox.max[0],mesh->bbox.max[1],mesh->bbox.max[2] };
 		for (unsigned int index : mesh->originMesh) {
+			shared_ptr<MyMesh> temp = nodeMeshes[index];
+			if (temp->fn>op.threshold&&temp->fn / temp->bbox.Volume() > op.threshold)optimazer.DoDecamation(op.simplifyTarget,temp);
 			tempMeshes.push_back(nodeMeshes[index]);
 		}
 	}

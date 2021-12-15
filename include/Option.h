@@ -26,6 +26,7 @@ struct Option
 	bool simplify;
 	float simplifyTarget;
 	bool merged;
+	float threshold;
 	Option() {
 		MaxMeshPerNode = 25;
 		Level = 5;
@@ -39,6 +40,7 @@ struct Option
 		simplify = false;
 		simplifyTarget = 0.5;
 		merged = false;
+		threshold = 500;
 	}
 	std::string get_current_directory()
 	{

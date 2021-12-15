@@ -85,6 +85,9 @@ public:
     void setFilename(string name) {
         op.Filename = name;
     }
+    void setSimplifThreshold(float threshold) {
+        op.threshold = threshold;
+    }
 private:
     Option op;
 };
