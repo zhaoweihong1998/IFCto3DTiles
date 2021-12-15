@@ -20,6 +20,12 @@
 * for more details.                                                         *
 *                                                                           *
 ****************************************************************************/
+#if defined(_MSC_VER)
+#define PRINT sprintf_s
+#elif defined(__unix__)
+#define PRINT sprintf
+#else
+#endif
 
 
 #ifndef __VCG_DECIMATION_TRICOLLAPSE
@@ -116,7 +122,7 @@ public:
   virtual const char *Info(TriMeshType &m) {
     mt = &m;
     static char buf[60];
-      sprintf_s(buf,"%i -> %i %g\n", int(pos.V(0)-&m.vert[0]), int(pos.V(1)-&m.vert[0]),-_priority);
+      PRINT(buf,"%i -> %i %g\n", int(pos.V(0)-&m.vert[0]), int(pos.V(1)-&m.vert[0]),-_priority);
    return buf;
   }
 

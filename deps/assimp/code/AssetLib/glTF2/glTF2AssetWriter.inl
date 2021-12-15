@@ -530,7 +530,7 @@ namespace glTF2 {
 
                 if (p.indices)
                     prim.AddMember("indices", p.indices->index, w.mAl);
-
+                prim.AddMember("id", (const std::string)p.myId, w.mAl);
                 Value attrs;
                 attrs.SetObject();
                 {
@@ -603,7 +603,14 @@ namespace glTF2 {
             Value val;
             obj.AddMember("rotation", MakeValue(val, n.rotation.value, w.mAl).Move(), w.mAl);
         }
-
+        if (n.min.isPresent) {
+            Value val;
+            obj.AddMember("min", MakeValue(val, n.min.value, w.mAl).Move(), w.mAl);
+        }
+        if (n.max.isPresent) {
+            Value val;
+            obj.AddMember("max", MakeValue(val, n.max.value, w.mAl).Move(), w.mAl);
+        }
         AddRefsVector(obj, "children", n.children, w.mAl);
 
         if (!n.meshes.empty()) {
@@ -744,7 +751,6 @@ namespace glTF2 {
             Ref<Buffer> b = mAsset.buffers.Get(i);
 
             std::string binPath = b->GetURI();
-            binPath = "output\\" + binPath;
             std::unique_ptr<IOStream> binOutFile(mAsset.OpenFile(binPath, "wb", true));
 
             if (binOutFile == 0) {

@@ -1,10 +1,10 @@
 #pragma once
-#include "SpatialTree.h"
+#include "TreeBuilder.h"
 #include <assimp/postprocess.h>
 #include <assimp/Importer.hpp>
 #include <assimp/DefaultIOSystem.h>
 #include <json.hpp>
-
+#include "MyMeshOptimizer.h"
 #include <MyGltfExporter.h>
 
 #if defined(_MSC_VER)
@@ -24,6 +24,7 @@ private:
 	Assimp::IOSystem* io;
 	vector<shared_ptr<MyMesh>> myMeshes;
 	vector<shared_ptr<MyMesh>> nodeMeshes;
+	vector<shared_ptr<MyMesh>> MergedMeshes;
 	TileInfo* rootTile;
 	const aiScene* mScene;
 	int m_currentTileLevel;
@@ -33,17 +34,24 @@ private:
 	float Distance;
 	unsigned int batch_id;
 	Assimp::Importer* importer;
-	const Option op;
+	Option op;
+	double maxArea;
+	double minArea;
+	Box3f* sceneBox;
+	struct nodeInfo* nInfo;
+	MyMeshOptimizer optimazer;
 public:
-	My3DTilesExporter(const Option& op);
+	My3DTilesExporter(Option& op);
 	~My3DTilesExporter();
 	void createMyMesh();
 	void createNodeBox();
 	void export3DTiles();
+	void getNodeMeshInfos(aiNode* node, vector<MeshInfo>& meshInfos, unsigned int& batch_id, struct nodeInfo* ninfo, Matrix44f* parentMatrix = nullptr);
 	nlohmann::json traverseExportTileSetJson(TileInfo* tileInfo);
 	void export3DTilesset(TileInfo* rootTile);
 	void exportTiles(TileInfo* rootTile);
-	void simplifyMesh(TileInfo* tileInfo, char* bufferName);
-	void writeGltf(TileInfo* tileInfo, std::vector<MyMeshInfo> meshes, char* bufferName,const aiScene* mScene);
+	void simplifyMesh(vector<shared_ptr<MyMesh>>* meshes);
+	void writeGltf(TileInfo* tileInfo, std::vector<shared_ptr<MyMesh>>* meshes, char* bufferName,const aiScene* mScene);
+	void info();
+	nlohmann::json GetInfo(struct nodeInfo* ninfo);
 };
-

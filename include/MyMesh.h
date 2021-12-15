@@ -39,7 +39,9 @@ private:
 
 };
 typedef tri::BasicVertexPair<MyVertex>  VertexPair;
-class MyEdge : public Edge<MyUsedTypes> {};
+
+
+class MyEdge : public Edge<MyUsedTypes, vertex::Mark,edge::VertexRef,edge::BitFlags, edge::EEAdj> {};
 
 
 class MyFace : public Face < MyUsedTypes,
@@ -49,7 +51,12 @@ class MyFace : public Face < MyUsedTypes,
     face::Normal3f,
     face::WedgeRealNormal3f,
     face::VertexRef,
-    face::BitFlags > {};
+    face::BitFlags > {
+public:
+    float area() {
+        return vcg::DoubleArea(*this);
+    }
+};
 
 class MyMesh : public tri::TriMesh<
     vector<MyVertex>,
@@ -61,6 +68,8 @@ public:
     unsigned int maxterialIndex;
     unsigned int batchId;
     string name;
+    vector<unsigned int> originMesh;
+    string id;
     static void ConcatMyMesh(shared_ptr<MyMesh> dest, shared_ptr<MyMesh> src)
     {
         
@@ -94,7 +103,39 @@ public:
             ++fi;
         }
     }
+    static void MergeMyMesh(shared_ptr<MyMesh> dest, vector<shared_ptr<MyMesh>>& srcs) {
+        for (auto& src : srcs) {
+            VertexIterator vi = Allocator<MyMesh>::AddVertices(*dest, src->vn);
+            std::unordered_map<VertexPointer, VertexPointer> vertexMap;
+            dest->maxterialIndex = src->maxterialIndex;
+            for (int j = 0; j < src->vn; ++j)
+            {
+                (*vi).P()[0] = src->vert[j].P()[0];
+                (*vi).P()[1] = src->vert[j].P()[1];
+                (*vi).P()[2] = src->vert[j].P()[2];
 
+                (*vi).normalExist = true;
+                (*vi).N()[0] = src->vert[j].N()[0];
+                (*vi).N()[1] = src->vert[j].N()[1];
+                (*vi).N()[2] = src->vert[j].N()[2];
+
+                vertexMap.insert(make_pair(&(src->vert[j]), &*vi));
+
+                ++vi;
+            }
+
+            int faceNum = src->fn;
+            FaceIterator fi = Allocator<MyMesh>::AddFaces(*dest, faceNum);
+
+            for (int j = 0; j < faceNum; ++j)
+            {
+                fi->V(0) = vertexMap.at(src->face[j].V(0));
+                fi->V(1) = vertexMap.at(src->face[j].V(1));
+                fi->V(2) = vertexMap.at(src->face[j].V(2));
+                ++fi;
+            }
+        }
+    }
     static float BoxArea(Box3f box) {
         float x = box.DimX();
         float y = box.DimY();
@@ -110,6 +151,17 @@ public:
     inline MyTriEdgeCollapse(const VertexPair& p, int i, BaseParameterClass* pp) : TECQ(p, i, pp) {}
 };
 
+struct nodeInfo
+{
+    string name;
+    string id;
+    vector<float> transformation;
+    vector<string> meshes;
+    vector<struct nodeInfo*> children;
+    struct nodeInfo* parent = nullptr;
+    Box3f* box = nullptr;
+};
+
 class MeshInfo
 {
 public:
@@ -118,12 +170,14 @@ public:
     unsigned int* meshIndex;
     unsigned int batchId;
     string name;
+    struct nodeInfo* myInfo;
 public:
     MeshInfo() {
         matrix = nullptr;
         mNumMeshes = 0;
         meshIndex = nullptr;
         name = "";
+        myInfo = nullptr;
     }
     MeshInfo(const MeshInfo& meshInfo) {
         if (meshInfo.matrix != nullptr) {
@@ -136,6 +190,7 @@ public:
         mNumMeshes = meshInfo.mNumMeshes;
         batchId = meshInfo.batchId;
         name = meshInfo.name;
+        myInfo = meshInfo.myInfo;
     }
 
     ~MeshInfo() {
@@ -162,12 +217,19 @@ class TileInfo {
 public:
     int level;
     float geometryError;
-    std::vector<MyMeshInfo> myMeshInfos;
+    std::vector<shared_ptr<MyMesh>> myMeshInfos;
     std::vector<TileInfo* > children;
     Box3f* boundingBox;
     TileInfo* parent;
     int originalVertexCount;
     std::string contentUri;
+    TileInfo() {
+        boundingBox = new Box3f();
+        parent = nullptr;
+        geometryError = 0.0f;
+        level = 0;
+        originalVertexCount = 0;
+    }
 };
 
 typedef typename MyMesh::VertexPointer VertexPointer;
@@ -177,6 +239,16 @@ typedef typename MyMesh::EdgeIterator EdgeIterator;
 typedef typename MyMesh::ScalarType ScalarType;
 typedef typename MyMesh::VertexType VertexType;
 typedef typename MyMesh::FaceType FaceType;
+
+template<typename MeshType>
+class myLocalOptimization : public LocalOptimization<MeshType> {
+public:
+    myLocalOptimization(float len,MeshType& mm, BaseParameterClass* _pp) :LocalOptimization<MeshType>(mm, _pp) {
+        length = len;
+    }
+private:
+    float length;
+};
 
 
 

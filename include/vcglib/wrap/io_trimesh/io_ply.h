@@ -37,6 +37,14 @@ Revision 1.1  2004/03/03 15:00:51  cignoni
 Initial commit
 
 ****************************************************************************/
+#if defined(_MSC_VER)
+#define STRDUP _strdup
+#elif defined(__unix__)
+#define STRDUP strdup
+#else
+#endif
+
+
 #ifndef __VCGLIB_IOTRIMESH_IO_PLY
 #define __VCGLIB_IOTRIMESH_IO_PLY
 
@@ -76,7 +84,7 @@ public:
     elemDescVec[elemType]->push_back(PropDescriptor());
     elemNameVec[elemType]->push_back(attrName);
     elemDescVec[elemType]->back().elemname=elemStr[elemType];
-    elemDescVec[elemType]->back().propname=_strdup(propName);
+    elemDescVec[elemType]->back().propname=STRDUP(propName);
     elemDescVec[elemType]->back().stotype1 = vcg::ply::T_FLOAT;
     elemDescVec[elemType]->back().memtype1 = vcg::ply::T_FLOAT;
   }

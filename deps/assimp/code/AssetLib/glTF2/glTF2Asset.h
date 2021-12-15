@@ -884,6 +884,8 @@ struct Mesh : public Object {
         Primitive(): ngonEncoded(false) {}
 
         unsigned int batchId;
+
+        std::string myId;
     };
 
     std::vector<Primitive> primitives;
@@ -910,7 +912,8 @@ struct Node : public Object {
     Nullable<vec3> translation;
     Nullable<vec4> rotation;
     Nullable<vec3> scale;
-
+    Nullable<vec3> min;
+    Nullable<vec3> max;
     Ref<Camera> camera;
     Ref<Light> light;
 
