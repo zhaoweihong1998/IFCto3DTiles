@@ -1,5 +1,5 @@
 #include "My3DTilesExporter.h"
-#include <MyIfc.h>
+#include <com_tile_ifc_MyIfc.h>
 
 
 static void usage(const char* msg = nullptr) {
@@ -78,8 +78,7 @@ public:
         op.Log = flag;
     }
     void setOutputPath(string path) {
-        op.makedir(path);
-        op.OutputDir = ".\\"+path+"\\";
+        op.OutputDir = path;
     }
 
     void setFilename(string name) {
@@ -103,7 +102,7 @@ MyIfc::~MyIfc()
 }
 
 extern "C"
-JNIEXPORT jlong JNICALL Java_MyIfc_createNativeIfc
+JNIEXPORT jlong JNICALL Java_com_tile_ifc_MyIfc_createNativeIfc
 (JNIEnv*, jobject) {
     jlong result;
     result = (jlong) new MyIfc();
@@ -111,16 +110,24 @@ JNIEXPORT jlong JNICALL Java_MyIfc_createNativeIfc
 }
 
 extern "C"
-JNIEXPORT void JNICALL Java_MyIfc_readFile
+JNIEXPORT void JNICALL Java_com_tile_ifc_MyIfc_readFile
 (JNIEnv* env, jobject obj, jlong thiz, jstring filename) {
     const char* name = env->GetStringUTFChars(filename, NULL);
     ((MyIfc*)thiz)->setFilename(name);
 }
 
 extern "C"
-JNIEXPORT void JNICALL Java_MyIfc_to3DTiles
+JNIEXPORT void JNICALL Java_com_tile_ifc_MyIfc_to3DTiles
 (JNIEnv* env, jobject obj, jlong thiz) {
     ((MyIfc*)thiz)->convertTo3DTiles();
 }
+
+extern "C"
+JNIEXPORT void JNICALL Java_com_tile_ifc_MyIfc_setOutputPath
+(JNIEnv * env, jobject obj, jlong thiz, jstring path) {
+    const char* _path = env->GetStringUTFChars(path, NULL);
+    ((MyIfc*)thiz)->setOutputPath(_path);
+}
+
 
 

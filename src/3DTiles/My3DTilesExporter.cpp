@@ -291,8 +291,17 @@ void My3DTilesExporter::export3DTilesset(TileInfo* rootTile)
 	dummyTransform.push_back(-1);
 	tilesetJson["root"]["transform"] = dummyTransform;
 	string filepath = op.OutputDir+"tileset.json";
-	std::ofstream file(filepath);
-	file << tilesetJson;
+	std::ofstream f;
+	try
+	{
+		f.open(filepath, std::ofstream::out);
+	}
+	catch (const std::exception&)
+	{
+		cout << "fialed to open file: " << filepath << endl;
+		exit(0);
+	};
+	f << tilesetJson;
 }
 void My3DTilesExporter::exportTiles(TileInfo* rootTile)
 {
@@ -390,18 +399,23 @@ void My3DTilesExporter::info() {
 	nlohmann::json scene = nlohmann::json({});
 	string name = op.Filename.substr(op.Filename.find_last_of('/') + 1);
 	name = name.substr(0, name.find_last_of('.'));
-
-	op.makedir(name);
-	op.OutputDir = "./"+name+"/";
-
 	scene["name"] = name;
 	scene["scene"] = GetInfo(nInfo);
 	
 	name = name + ".json";
 	name = op.OutputDir + name;
 	char* filepath = (char*)name.c_str();
-	std::ofstream file(filepath);
-	file << scene;
+	std::ofstream f;
+	try
+	{
+		f.open(filepath, std::ofstream::out);
+	}
+	catch (const std::exception&)
+	{
+		cout << "fialed to open file: " << filepath << endl;
+		exit(0);
+	};
+	f << scene;
 }
 nlohmann::json My3DTilesExporter::GetInfo(struct nodeInfo* ninfo) {
 	nlohmann::json info = nlohmann::json({});
@@ -415,18 +429,6 @@ nlohmann::json My3DTilesExporter::GetInfo(struct nodeInfo* ninfo) {
 		info["transformation"] = Transform;
 	}
 	
-	/*if (ninfo->box != nullptr) {
-		nlohmann::json min = nlohmann::json::array();
-		nlohmann::json max = nlohmann::json::array();
-		min.push_back(ninfo->box->min[0]);
-		min.push_back(ninfo->box->min[1]);
-		min.push_back(ninfo->box->min[2]);
-		max.push_back(ninfo->box->max[0]);
-		max.push_back(ninfo->box->max[1]);
-		max.push_back(ninfo->box->max[2]);
-		info["boundingBox"]["min"] = min;
-		info["boundingBox"]["max"] = max;
-	}*/
 	if (ninfo->children.size() > 0) {
 		nlohmann::json children = nlohmann::json::array();
 		for (auto child : ninfo->children) {

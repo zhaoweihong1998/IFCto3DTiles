@@ -1,3 +1,4 @@
+package com.tile.ifc;
 public class MyIfc {
     static
     {
@@ -11,6 +12,7 @@ public class MyIfc {
     private native long createNativeIfc();
     public native void readFile(long addr,String filename);
     public native void to3DTiles(long addr);
+    public native void setOutputPath(long addr, String path);
     public long getAddr(){
         return nativeIfc;
     }
