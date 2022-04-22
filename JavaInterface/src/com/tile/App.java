@@ -1,4 +1,4 @@
-package com.tile.ifc
+package com.tile.ifc;
 public class App {
     public static void main(String[] args) {
         MyIfc myIfc = new MyIfc();
