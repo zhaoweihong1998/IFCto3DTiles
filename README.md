@@ -52,7 +52,7 @@ Assimp模型场景数据是按照节点树组织的，在转换为vcglib的过�
 1. 下载源文件，目前在github上设置为私有库，无法直接下载
 
    ```bash
-   git clone https://github.com/zhaoweihong1998/3DTiles.git
+   git clone https://github.com/zhaoweihong1998/IFCto3DTiles.git
    ```
 
 2. 进入主目录3DTiles，新建build目录，进入build目录
@@ -85,7 +85,7 @@ Assimp模型场景数据是按照节点树组织的，在转换为vcglib的过�
 7. 若要生成库文件可以下载相应分支，按照前述步骤生成库文件，生成的库文件在build/bin目录下
 
    ````bash
-   git clone -b interface https://github.com/zhaoweihong1998/3DTiles.git
+   git clone -b interface https://github.com/zhaoweihong1998/IFCto3DTiles.git
    ````
 8. 可以在主目录下直接执行以下命令，完成生成和测试。正常执行会会在JavaInterface/src/output得到导出的文件
    ```bash
