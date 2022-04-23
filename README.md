@@ -87,7 +87,15 @@ Assimp模型场景数据是按照节点树组织的，在转换为vcglib的过�
    ````bash
    git clone -b interface https://github.com/zhaoweihong1998/3DTiles.git
    ````
-
+8. 可以在主目录下直接执行以下命令，完成生成和测试。正常执行会会在JavaInterface/src/output得到导出的文件
+   ```bash
+   sh Build.sh
+   ```
+9. docker image生成，需要先安装docker，然后执行如何如下命令进入docker环境，按照之前的步骤编译
+   ```
+   sudo docker build -t bim .
+   sudo docker run -it bim /bin/bash
+   ```
 **主要增加的功能和修改**
 
 1. 新增模型简化接口，当需要处理的模型数据量很大的时候，可以对模型简化后再处理。现在的简化是针对单个的mesh进行简化，建模精度越高的mesh，简化程度就会越大，根据目前的实验，对模型进行40%的简化后，不会对模型的渲染结果产生太大的影响。
